@@ -21,6 +21,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <nrf.h>
+#include <nrf52.h>
 #include <nrf52_bitfields.h>
 #include <nrf_sdh.h>
 #include <nrf_sdm.h>
@@ -94,6 +95,7 @@ typedef enum _HARDWARE_TEST_CMD_ {
    HT_CMD_BUZ,
    HT_CMD_NFC,
    HT_CMD_LPM,
+   HT_CMD_BTL,
    HT_CMD_HLP,
    HT_CMD_RST,
    HT_CMD_LAST,
@@ -122,12 +124,14 @@ static void vSweepRadioBLEChTest(void);
 static void vStartRTCTest(void);
 static void vStopRTCTest(void);
 static void vLPMTest(void);
+static void vBTL_Start(void);
    
 static void vHTTimeOutHandler(void * p_pvContext);
 static void vHTRTCHandler(void * p_pvContext);
 
 static void vGPSInit(void);
 static void vBME_SingleShotRead(void);
+   
    
 /****************************************************************************************
  * Variable declarations
@@ -279,6 +283,7 @@ const char g_cachCmd[HT_CMD_LAST][CMD_FRAME_SIZE+1u] = {
    "BUZ\n\0",
    "NFC\n\0",
    "LPM\n\0",
+   "BTL\n\0",
    "HLP\n\0",
    "RST\n\0",
 };
@@ -309,6 +314,7 @@ void vHT_PrintHelp(void)
    PRINT_FAST("BUZ: Check Buzzer (Audio)\n");
    PRINT_FAST("NFC: Write Data on \n");
    PRINT_FAST("LPM: Lowest Power Mode Set\n");
+   PRINT_FAST("BTL: Put Device in Bootloader for Firmware Update\n");
    PRINT_FAST("HLP: Print Help\n");
    PRINT_FAST("RST: RESET\n");
 }
@@ -423,6 +429,10 @@ static void vHT_NewTestProcess(e_HT_Commands_t p_eCmd)
       case HT_CMD_LPM:
          PRINT_FAST("$ACK,LPM+1\n");
          vLPMTest();
+         break;
+      case HT_CMD_BTL:
+         PRINT_FAST("$ACK,DFU+1\n");
+         vBTL_Start();
          break;
       case HT_CMD_HLP:
          PRINT_FAST("$ACK,HLP+1\n");
@@ -1214,6 +1224,15 @@ static void vLPMTest(void)
       vMSM_StateMachineSet(MSM_DEEP_SLEEP);
    }
 }
+static void vBTL_Start(void)
+{
+   NRF_POWER->GPREGRET = 0xB1; 
+   PRINT_FAST("$RSL,BTL+1+CLOSE_VIEWER\n");
+   
+   NVIC_SystemReset();
+   
+}
+
 static void vHTTimeOutHandler(void * p_pvContext)
 {
    g_u8StopTest = 1u;   
@@ -1516,6 +1535,8 @@ static void vBME_SingleShotRead(void)
       PRINT_FAST("$RSL,RSS+1+BME280\n");
    }
 }
+
+
 /****************************************************************************************
  * End Of File
  ****************************************************************************************/
