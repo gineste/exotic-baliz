@@ -1,0 +1,10 @@
+Objects/
+Listings/
+*.uvguix.*
+*.Exotic
+
+*.d
+*.crf
+*.o
+JLinkLog.txt
+/JLinkSettings.ini
