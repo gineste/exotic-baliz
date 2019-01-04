@@ -73,23 +73,43 @@ int main(void)
 
 void HardFault_Handler(void)
 {
-	while(1);
+   #ifdef DEBUG
+      while(1);
+   #else
+      NVIC_SystemReset();
+   #endif
 }
 void NMI_Handler(void)
 {
-	while(1);
+   #ifdef DEBUG
+      while(1);
+   #else
+      NVIC_SystemReset();
+   #endif
 }
 void MemoryManagement_Handler(void)
 {
-	while(1);
+   #ifdef DEBUG
+      while(1);
+   #else
+      NVIC_SystemReset();
+   #endif
 }
 void BusFault_Handler(void)
 {
-	while(1);
+   #ifdef DEBUG
+      while(1);
+   #else
+      NVIC_SystemReset();
+   #endif
 }
 void UsageFault_Handler(void)
 {
-	while(1);
+   #ifdef DEBUG
+      while(1);
+   #else
+      NVIC_SystemReset();
+   #endif
 }
 
 void FPU_IRQHandler(void)

@@ -56,6 +56,8 @@
 #include "SEGGER_RTT.h"
 #include "UartManagement.h"
 #include "radio_config.h"
+#include "InterruptManager.h"
+
 
 #include "GlobalDefs.h"
 
@@ -94,6 +96,7 @@ typedef enum _HARDWARE_TEST_CMD_ {
    HT_CMD_LED,
    HT_CMD_BUZ,
    HT_CMD_NFC,
+   HT_CMD_INT,
    HT_CMD_LPM,
    HT_CMD_BTL,
    HT_CMD_HLP,
@@ -125,7 +128,9 @@ static void vStartRTCTest(void);
 static void vStopRTCTest(void);
 static void vLPMTest(void);
 static void vBTL_Start(void);
-   
+static void vINT_Configure(void);
+static void vINT_Clear(void);
+      
 static void vHTTimeOutHandler(void * p_pvContext);
 static void vHTRTCHandler(void * p_pvContext);
 
@@ -153,7 +158,7 @@ static void vBME_SingleShotRead(void);
 #if (EN_ADXL362 == 1)
    static s_ADXL362_Context_t g_sADXLContext = {
       .fp_u32SPITransfer = &u32Hal_SPI_Transfer,   /* Function pointer to a SPI transfer */
-      .fp_vDelay_ms = &nrf_delay_ms,               /* Function pointer to a timer in ms */
+      .fp_vDelay_ms = &vHal_Timer_DelayMs,         /* Function pointer to a timer in ms */
       .fp_Int1Handler = NULL,                      ///*&vDataUpdate_InterruptADXL362*//* Interrupt Handler for Activity and Inactivity */
       .fp_Int2Handler = NULL,                      ///*&vDataUpdate_InterruptADXL362*//* Interrupt Handler for Activity and Inactivity */
       
@@ -170,11 +175,12 @@ static void vBME_SingleShotRead(void);
       .u8InactivityDetection = 1u,		/* 0 - no activity detection, 1 - activity detection */
       .u8RefOrAbsInactivity = 1u,		/* 0 - absolute mode, 1 - referenced mode. */
       .u16ThresholdInactivity = 0x3FF, /* 11-bit unsigned value that the ADXL362 samples are compared to. */
-      .u32TimeInactivity = 5000u,  		/* 16-bit value inactivity time in ms (from 164s @ odr = 400Hz to 87min @ odr = 12.5Hz) */
+      .u32TimeInactivity = 1000u,  		/* 16-bit value inactivity time in ms (from 164s @ odr = 400Hz to 87min @ odr = 12.5Hz) */
                                         
-      .eInt1Map = ADXL362_INTMAPX_AWAKE,  /* Type of the interrupt n°1 */
-      .eInt2Map = ADXL362_INTMAPX_OFF,    /* Type of the interrupt n°2 */
-         
+      .eInt1Map = ADXL362_INTMAPX_OFF,  /* Type of the interrupt n°1 */
+      .eInt2Map = ADXL362_INTMAPX_AWAKE,    /* Type of the interrupt n°2 */
+      .u32Int1Pin = 0xFF, 
+      .u32Int2Pin = ADXL_INT2,
       .eWakeUpMode = ADXL362_WAKEUP_OFF,  /* Wake-up mode (Let it OFF if you adjustable ODR for (In)Activity detection) */
       .eMeasureMode = ADXL362_MEASURE_ON  /* Power mode (Standby or Measurement Mode) */
    };
@@ -257,6 +263,8 @@ static uint8_t g_u8StopTest = 0u;
 static uint8_t g_u8TestInProgress = 0u;
 static uint8_t g_u8I2CInitSensors = 0u;
 static uint8_t g_u8RTCCheck = 0u;   
+static uint8_t g_u8INTCheck = 0u;   
+   
    
 static uint8_t g_u8BLERadioInit = 0u;
 static uint8_t g_u8BLERadioChannel = 0u;
@@ -282,6 +290,7 @@ const char g_cachCmd[HT_CMD_LAST][CMD_FRAME_SIZE+1u] = {
    "LED\n\0",
    "BUZ\n\0",
    "NFC\n\0",
+   "INT\n\0",
    "LPM\n\0",
    "BTL\n\0",
    "HLP\n\0",
@@ -313,6 +322,7 @@ void vHT_PrintHelp(void)
    PRINT_FAST("LED: Check LED (Visual)\n");
    PRINT_FAST("BUZ: Check Buzzer (Audio)\n");
    PRINT_FAST("NFC: Write Data on \n");
+   PRINT_FAST("INT: Initialize/Clear Interrupt\n");
    PRINT_FAST("LPM: Lowest Power Mode Set\n");
    PRINT_FAST("BTL: Put Device in Bootloader for Firmware Update\n");
    PRINT_FAST("HLP: Print Help\n");
@@ -425,6 +435,19 @@ static void vHT_NewTestProcess(e_HT_Commands_t p_eCmd)
          break;
       case HT_CMD_NFC:
          PRINT_FAST("$ACK,NFC+1\n");
+         break;
+      case HT_CMD_INT:
+         PRINT_FAST("$ACK,INT+1\n");
+         if(g_u8INTCheck == 0u)
+         {
+            vIntManagerInit();
+            vINT_Configure();
+            g_u8INTCheck = 1u;
+         }
+         else
+         {
+            vINT_Clear();
+         }
          break;
       case HT_CMD_LPM:
          PRINT_FAST("$ACK,LPM+1\n");
@@ -570,7 +593,7 @@ static void vStartI2CSensorsInitTest(void)
    if(eMAX44009_ContextSet(g_sMAXContext) == MAX44009_ERROR_NONE)
    { 
       if(eMAX44009_ConversionModeSet(MAX44009_DEFAULT,MAX44009_AUTOMATIC, 
-                                    MAX44009_INT_TIME_800MS,MAX44009_HIGH_BRIGHTNESS) == MAX44009_ERROR_NONE)
+                                    MAX44009_INT_TIME_25MS,MAX44009_HIGH_BRIGHTNESS) == MAX44009_ERROR_NONE)
       {
          l_u8Error = 0u;
       }
@@ -1537,6 +1560,55 @@ static void vBME_SingleShotRead(void)
 }
 
 
+static void vINT_Configure(void)
+{
+#if (EN_BME280 == 1)   
+#endif
+   
+#if (EN_MAX44009 == 1)
+   (void)eMAX44009_InterruptCfg(1u, 5000u, 50u, 100u);
+#endif
+#if (EN_LSM6DSL == 1)
+
+#endif
+#if (EN_LIS2MDL == 1)
+   (void)eLIS2MDL_ThresholdSet(1000u);
+   (void)eLIS2MDL_InterruptCtrlSet(1u, LIS2MDL_INT_AXIS_XYZ, 1u, 0u);
+#endif
+
+#if (EN_VEML6075 == 1)
+
+#endif
+   
+#if (EN_ST25DV == 1)
+
+#endif
+   
+#if (EN_LTC2943 == 1)
+#endif
+
+}
+
+static void vINT_Clear(void)
+{
+   uint8_t l_u8Status = 0u;
+#if (EN_BME280 == 1)   
+#endif   
+#if (EN_MAX44009 == 1)
+   (void)eMAX44009_InterruptStatusGet(&l_u8Status);
+#endif
+#if (EN_LSM6DSL == 1)
+#endif
+#if (EN_LIS2MDL == 1)
+#endif
+#if (EN_VEML6075 == 1)
+#endif   
+#if (EN_ST25DV == 1)
+#endif   
+#if (EN_LTC2943 == 1)
+#endif
+   
+}
 /****************************************************************************************
  * End Of File
  ****************************************************************************************/

@@ -311,7 +311,7 @@
           </ArmAdsMisc>
           <Cads>
             <interw>1</interw>
-            <Optim>4</Optim>
+            <Optim>1</Optim>
             <oTime>0</oTime>
             <SplitLS>0</SplitLS>
             <OneElfS>1</OneElfS>
@@ -409,6 +409,11 @@
               <FileName>HardwareTest.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Src\Application\HardwareTest.c</FilePath>
+            </File>
+            <File>
+              <FileName>InterruptManager.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Src\Application\InterruptManager.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -919,11 +924,6 @@
               <FileName>app_pwm.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Src\components\libraries\pwm\app_pwm.c</FilePath>
-            </File>
-            <File>
-              <FileName>app_button.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Src\components\libraries\button\app_button.c</FilePath>
             </File>
           </Files>
         </Group>

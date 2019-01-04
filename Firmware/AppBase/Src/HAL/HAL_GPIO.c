@@ -106,13 +106,13 @@ void vHal_GPIO_Init(void)
 //   vHal_GPIO_Set(ADXL_CS);
    
    /* LIS2MDL Interrupt */
-	vGPIO_InputCfg(LIS2_INT, HALGPIO_PIN_NOPULL);
+//	vGPIO_InputCfg(LIS2_INT, HALGPIO_PIN_NOPULL);
    
    /* ST25DV Interrupt */
 	vGPIO_InputCfg(ST25DV_GPO_INT, HALGPIO_PIN_NOPULL);
    
    /* MAX44009 Interrupt */
-	vGPIO_InputCfg(MAX44009_INT, HALGPIO_PIN_NOPULL);
+//	vGPIO_InputCfg(MAX44009_INT, HALGPIO_PIN_NOPULL);
    
    /* BP1 */
    vGPIO_OutputCfg(BP1, HALGPIO_PIN_NOPULL);

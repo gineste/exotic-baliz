@@ -327,6 +327,49 @@ e_MAX44009_Error_t eMAX44009_InterruptStatusGet(uint8_t * p_pu8IntStatus)
    return l_eError;
 }
 
+/**@brief  Get High/Low Threshold value of the MAX44009 module.
+ * @param[out]  p_pu32ThrHigh
+ * @param[out]  p_pu32ThrLow
+ * @param[out]  p_pu16ThrTimer
+ * @return Error Code.
+ */
+e_MAX44009_Error_t eMAX44009_ThresholdGet(uint32_t * p_pu32ThrHigh, uint32_t * p_pu32ThrLow, uint16_t * p_pu16ThrTimer)
+{
+   e_MAX44009_Error_t l_eError = MAX44009_ERROR_INIT;
+   uint8_t l_u8Thr = 0u;
+   uint8_t l_u8Exp = 0u;
+   uint32_t l_u32Mantissa = 0u;
+   
+   if(g_u8IsInitialized == 1u)
+   {
+      if( (p_pu32ThrHigh != NULL) && (p_pu32ThrLow != NULL) && (p_pu16ThrTimer != NULL) )
+      {
+         l_eError = eReadRegisters(THR_LOW, &l_u8Thr, 1u);
+         EXIT_ERROR_CHECK(l_eError);
+         l_u8Exp = (l_u8Thr & 0xF0) >> 4u;
+         l_u32Mantissa = ((l_u8Thr & 0x0F) << 4u) + 0x0F;
+         l_u32Mantissa <<= l_u8Exp;
+         (*p_pu32ThrLow) = (uint32_t)((float)l_u32Mantissa * MAX44009_COEF_MANTISSA);
+         
+         l_eError = eReadRegisters(THR_HIGH, &l_u8Thr, 1u);
+         EXIT_ERROR_CHECK(l_eError);
+         l_u8Exp = (l_u8Thr & 0xF0) >> 4u;
+         l_u32Mantissa = ((l_u8Thr & 0x0F) << 4u) + 0x0F;
+         l_u32Mantissa <<= l_u8Exp;
+         (*p_pu32ThrHigh) = (uint32_t)((float)l_u32Mantissa * MAX44009_COEF_MANTISSA);
+         
+         l_eError = eReadRegisters(THR_TIMER, &l_u8Thr, 1u);
+         EXIT_ERROR_CHECK(l_eError);
+         (*p_pu16ThrTimer) = (((uint16_t)l_u8Thr) * MIN_THR_TIMER);
+      }
+      else
+      {
+         l_eError = MAX44009_ERROR_PARAM;
+      }
+   }
+
+   return l_eError;
+}
 /**@brief  Check if MAX44009 module is still available.
  * @return 1 if available, else 0u.
  */

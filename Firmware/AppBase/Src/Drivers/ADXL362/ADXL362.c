@@ -1151,18 +1151,24 @@ static uint8_t u8InitIntADXL(void)
 {
 	uint32_t l_u32Errcode = 0u;
 	
-	nrf_drv_gpiote_in_config_t l_sADXLConfig = GPIOTE_CONFIG_IN_SENSE_TOGGLE(false);
-	l_sADXLConfig.pull = NRF_GPIO_PIN_NOPULL;
+//	nrf_drv_gpiote_in_config_t l_sADXLConfig = GPIOTE_CONFIG_IN_SENSE_TOGGLE(false);
+//	l_sADXLConfig.pull = NRF_GPIO_PIN_NOPULL;
 
-   l_u32Errcode = nrf_drv_gpiote_init();
-   
-   if((l_u32Errcode == 0u) || (l_u32Errcode == NRF_ERROR_INVALID_STATE))
-   {
-      l_u32Errcode = nrf_drv_gpiote_in_init(g_sADXL362.u32Int2Pin, &l_sADXLConfig, vInterruptADXL);
-      l_u32Errcode = nrf_drv_gpiote_in_init(g_sADXL362.u32Int1Pin, &l_sADXLConfig, vInterruptADXL);
-      nrf_drv_gpiote_in_event_enable(g_sADXL362.u32Int2Pin, true);
-      nrf_drv_gpiote_in_event_enable(g_sADXL362.u32Int1Pin, true);
-	}
+//   l_u32Errcode = nrf_drv_gpiote_init();
+//   
+//   if((l_u32Errcode == 0u) || (l_u32Errcode == NRF_ERROR_INVALID_STATE))
+//   {
+//      if(g_sADXL362.u32Int2Pin != 0xFF)
+//      {
+//         l_u32Errcode = nrf_drv_gpiote_in_init(g_sADXL362.u32Int2Pin, &l_sADXLConfig, vInterruptADXL);
+//         nrf_drv_gpiote_in_event_enable(g_sADXL362.u32Int2Pin, true);
+//      }
+//      if(g_sADXL362.u32Int1Pin != 0xFF)
+//      {
+//         l_u32Errcode = nrf_drv_gpiote_in_init(g_sADXL362.u32Int1Pin, &l_sADXLConfig, vInterruptADXL);
+//         nrf_drv_gpiote_in_event_enable(g_sADXL362.u32Int1Pin, true);
+//      }
+//	}
    
 	return (uint8_t)l_u32Errcode;
 }

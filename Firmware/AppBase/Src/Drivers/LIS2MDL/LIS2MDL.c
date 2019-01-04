@@ -118,6 +118,8 @@
 #define INT_CTRL_REG_XYZEN_POS   (uint8_t)5
 #define INT_CTRL_REG_XYZEN_MSK   (uint8_t)0x20
 
+/* INT_SOURCE_REG */
+
 #define EXIT_ERROR_CHECK(error)  do {     \
       if((error != LIS2MDL_ERROR_NONE))   \
       {                                   \
@@ -416,7 +418,7 @@ e_LIS2MDL_Error_t eLIS2MDL_TemperatureRead(void)
  * @param[in]  p_u8Activate : 1 to activate Interrupt on pin.
  * @param[in]  p_eIntAxis : X, Y, Z, XY, XZ, YZ, XYZ.
  * @param[in]  p_u8Polarity : 0 or 1.
- * @param[in]  p_u8Latched : Interrupt Latched or pulsed.
+ * @param[in]  p_u8Latched : 1 for Latched or 0 for pulsed.
  * @return Error code.
  */
 e_LIS2MDL_Error_t eLIS2MDL_InterruptCtrlSet(uint8_t p_u8Activate, e_LIS2MDL_InterruptAxis_t p_eIntAxis, uint8_t p_u8Polarity, uint8_t p_u8Latched)
@@ -424,6 +426,10 @@ e_LIS2MDL_Error_t eLIS2MDL_InterruptCtrlSet(uint8_t p_u8Activate, e_LIS2MDL_Inte
    e_LIS2MDL_Error_t l_eErrCode = LIS2MDL_ERROR_PARAM;
    uint8_t l_u8RegVal = 0u;
 
+   /* Read Register */
+   l_eErrCode = eReadRegister(INT_CTRL_REG, &l_u8RegVal, 1u);
+   EXIT_ERROR_CHECK(l_eErrCode);
+   
    /* IEN value */
    l_u8RegVal &= ~INT_CTRL_REG_EN_MSK;          
    l_u8RegVal |= ((uint8_t)p_u8Activate << INT_CTRL_REG_EN_POS);
@@ -441,8 +447,17 @@ e_LIS2MDL_Error_t eLIS2MDL_InterruptCtrlSet(uint8_t p_u8Activate, e_LIS2MDL_Inte
    l_u8RegVal |= ((uint8_t)p_u8Latched << INT_CTRL_REG_LATCH_POS);
       
    l_eErrCode = eWriteRegister(INT_CTRL_REG, l_u8RegVal);
+   EXIT_ERROR_CHECK(l_eErrCode);
    
-   (void)eWriteRegister(INT_CTRL_REG, l_u8RegVal);
+   /* Read Register */
+   l_eErrCode = eReadRegister(CFG_REG_C, &l_u8RegVal, 1u);
+   EXIT_ERROR_CHECK(l_eErrCode);
+   /* INT on PIN */
+   l_u8RegVal &= ~CFG_REG_C_INTPIN_MSK;          
+   l_u8RegVal |= ((uint8_t)p_u8Latched << CFG_REG_C_INTPIN_POS);
+   
+   l_eErrCode = eWriteRegister(CFG_REG_C, l_u8RegVal);
+   EXIT_ERROR_CHECK(l_eErrCode);
    
    return l_eErrCode;
 }
@@ -455,9 +470,9 @@ e_LIS2MDL_Error_t eLIS2MDL_ThresholdSet(uint16_t p_u16TresholdmG)
 {
    e_LIS2MDL_Error_t l_eErrCode = LIS2MDL_ERROR_PARAM;
    
-   l_eErrCode = eWriteRegister(OUT_X_L_REG, (uint8_t)((uint16_t)p_u16TresholdmG & 0x00FF));
+   l_eErrCode = eWriteRegister(INT_THS_L_REG, (uint8_t)((uint16_t)p_u16TresholdmG & 0x00FF));
    EXIT_ERROR_CHECK(l_eErrCode);
-   l_eErrCode = eWriteRegister(OUT_X_H_REG, (uint8_t)(((uint16_t)p_u16TresholdmG & 0xFF00) >> 8u));
+   l_eErrCode = eWriteRegister(INT_THS_H_REG, (uint8_t)(((uint16_t)p_u16TresholdmG & 0xFF00) >> 8u));
    EXIT_ERROR_CHECK(l_eErrCode);
    
    return l_eErrCode;
