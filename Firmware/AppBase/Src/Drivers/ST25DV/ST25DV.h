@@ -20,6 +20,14 @@
 /****************************************************************************************
  * Defines
  ****************************************************************************************/
+#define ST25DV_MSK_GPO_ON_USER            (uint8_t)0x01
+#define ST25DV_MSK_GPO_ON_ACTIVITY        (uint8_t)0x02
+#define ST25DV_MSK_GPO_ON_INTERRUPT       (uint8_t)0x04
+#define ST25DV_MSK_GPO_ON_FIELD_CHANGE    (uint8_t)0x08
+#define ST25DV_MSK_GPO_ON_PUT_MSG         (uint8_t)0x10
+#define ST25DV_MSK_GPO_ON_GET_MSG         (uint8_t)0x20
+#define ST25DV_MSK_GPO_ON_WRITE           (uint8_t)0x40
+#define ST25DV_MSK_GPO_ENABLED            (uint8_t)0x80
 
 /****************************************************************************************
  * Type definitions
@@ -57,6 +65,7 @@ typedef struct _ST25DV_CONTEXT_ {
  ****************************************************************************************/
 e_ST25DV_Error_t eST25DV_ContextSet(s_ST25DV_Context_t p_sContext);
    
+e_ST25DV_Error_t eST25DV_GPOConfigure(uint8_t p_u8MskGPO);
 e_ST25DV_Error_t eST25DV_PasswordSet(uint64_t p_u64Pass);
 
 uint8_t u8ST25DV_IsAvailable(void);

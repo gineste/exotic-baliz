@@ -94,6 +94,14 @@ typedef enum _LSM6DSL_RANGE_GYRO_ {
    LSM6DSL_GYRO_RANGE_125DPS,
 }e_LSM6DSL_GyroFullScale_t;
 
+
+typedef enum _LSM6DSL_INTTERUPT_SOURCES_ {
+   LSM6DSL_INT_WAKEUP,
+   LSM6DSL_INT_TAP,
+   LSM6DSL_INT_D6D,
+   LSM6DSL_INT_WRIST,
+}e_LSM6DSL_InterruptSources_t;
+
 typedef struct _LSM6DSL_CONTEXT_ {
    e_LSM6DSL_Interface_t eInterface;
    struct {
@@ -133,6 +141,7 @@ e_LSM6DSL_Error_t eLSM6DSL_ContextSet(s_LSM6DSL_Context_t p_sContext);
 e_LSM6DSL_Error_t eLSM6DSL_WhoAmIGet(uint8_t * p_pu8WhoAmI);
 e_LSM6DSL_Error_t eLSM6DSL_SoftReset(void);
 
+e_LSM6DSL_Error_t eLSM6DSL_BlockDataUpdateSet(uint8_t p_u8Enable);
 e_LSM6DSL_Error_t eLSM6DSL_AccelCfgSet(e_LSM6DSL_ODR_t p_eODR, e_LSM6DSL_AccelFullScale_t p_eFullScale, e_LSM6DSL_Mode_t p_eMode);
 e_LSM6DSL_Error_t eLSM6DSL_AccelRead(void);
 e_LSM6DSL_Error_t eLSM6DSL_AccelGet(int16_t * p_ps16X, int16_t * p_ps16Y, int16_t * p_ps16Z);

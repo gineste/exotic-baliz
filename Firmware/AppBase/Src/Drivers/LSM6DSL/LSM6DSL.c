@@ -663,6 +663,14 @@ e_LSM6DSL_Error_t eLSM6DSL_SoftReset(void)
    return l_eErrCode;
 }
 
+/**@brief Set Block Data Update.
+ * @param[in]  p_u8Enable : 1 to active else 0.
+ * @return Error Code.
+ */
+e_LSM6DSL_Error_t eLSM6DSL_BlockDataUpdateSet(uint8_t p_u8Enable)
+{
+   return eWriteBitsReg(CTRL3_C_REG, (uint8_t)p_u8Enable, CTRL3_C_BDU_POS, CTRL3_C_BDU_MSK);
+}
 /**@brief Function to Configure Accelerometer.
  * @param[in] p_eODR
  * @param[in] p_eFullScale

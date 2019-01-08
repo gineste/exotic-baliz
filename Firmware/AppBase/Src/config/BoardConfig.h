@@ -66,7 +66,7 @@
 // <q> ST25DV Present
 // <i> The ST25DV is an EEPROM/NFC. It provides storage support.
 #ifndef EN_ST25DV
-#define EN_ST25DV 0
+#define EN_ST25DV 1
 #endif
 
 #ifndef SENSOR_NUMBER

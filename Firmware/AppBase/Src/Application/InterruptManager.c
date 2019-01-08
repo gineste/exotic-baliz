@@ -25,6 +25,7 @@
 #include "GlobalDefs.h"
 
 #include <nrf_drv_gpiote.h>
+#include "HAL/HAL_GPIO.h"
 #include "board.h"
 
 /* Self include */
@@ -60,10 +61,10 @@ void vIntManagerInit(void)
    if((l_u32ErrCode == 0u) || (l_u32ErrCode == NRF_ERROR_INVALID_STATE))
    {
    #if (EN_ADXL362 == 1)
-   /*	l_sPinConfig.is_watcher = false;
+   	l_sPinConfig.is_watcher = false;
       l_sPinConfig.hi_accuracy = false;
       l_sPinConfig.pull = NRF_GPIO_PIN_NOPULL;
-      l_sPinConfig.sense = NRF_GPIOTE_POLARITY_TOGGLE;*/
+      l_sPinConfig.sense = NRF_GPIOTE_POLARITY_TOGGLE;
       
       l_u32ErrCode = nrf_drv_gpiote_in_init(ADXL_INT2, &l_sPinConfig, vInterruptHandler);
       nrf_drv_gpiote_in_event_enable(ADXL_INT2, true);   
@@ -73,7 +74,8 @@ void vIntManagerInit(void)
     	l_sPinConfig.is_watcher = false;
       l_sPinConfig.hi_accuracy = false;
       l_sPinConfig.pull = NRF_GPIO_PIN_PULLUP;
-      l_sPinConfig.sense = NRF_GPIOTE_POLARITY_HITOLO;
+      l_sPinConfig.sense = NRF_GPIOTE_POLARITY_TOGGLE;//HITOLO;
+      
       l_u32ErrCode = nrf_drv_gpiote_in_init(MAX44009_INT, &l_sPinConfig, vInterruptHandler);
       nrf_drv_gpiote_in_event_enable(MAX44009_INT, true);   
    #endif /* NO_MAX44009 */
@@ -83,6 +85,7 @@ void vIntManagerInit(void)
       l_sPinConfig.hi_accuracy = false;
       l_sPinConfig.pull = NRF_GPIO_PIN_NOPULL;
       l_sPinConfig.sense = NRF_GPIOTE_POLARITY_TOGGLE;
+      
       l_u32ErrCode = nrf_drv_gpiote_in_init(LSM6_INT1, &l_sPinConfig, vInterruptHandler);
       nrf_drv_gpiote_in_event_enable(LSM6_INT1, true);
       l_u32ErrCode = nrf_drv_gpiote_in_init(LSM6_INT2, &l_sPinConfig, vInterruptHandler);
@@ -90,12 +93,22 @@ void vIntManagerInit(void)
    #endif /* NO_LSM6DSL */
 
    #if (EN_LIS2MDL == 1)
+      l_sPinConfig.is_watcher = false;
+      l_sPinConfig.hi_accuracy = false;
+      l_sPinConfig.pull = NRF_GPIO_PIN_NOPULL;
+      l_sPinConfig.sense = NRF_GPIOTE_POLARITY_TOGGLE;
+      
       l_u32ErrCode = nrf_drv_gpiote_in_init(LIS2_INT, &l_sPinConfig, vInterruptHandler);
       nrf_drv_gpiote_in_event_enable(LIS2_INT, true);
    #endif /* NO_LIS2MDL */
 
-   #if (EN_ST25DV == 1)
-      l_u32Errcode = nrf_drv_gpiote_in_init(ST25DV_GPO_INT, &l_sPinConfig, vInterruptHandler);
+   #if (EN_ST25DV == 1)   
+      l_sPinConfig.is_watcher = false;
+      l_sPinConfig.hi_accuracy = false;
+      l_sPinConfig.pull = NRF_GPIO_PIN_NOPULL;
+      l_sPinConfig.sense = NRF_GPIOTE_POLARITY_TOGGLE;
+      
+      l_u32ErrCode = nrf_drv_gpiote_in_init(ST25DV_GPO_INT, &l_sPinConfig, vInterruptHandler);
       nrf_drv_gpiote_in_event_enable(ST25DV_GPO_INT, true);
    #endif /* NO_ST25DV */
 
@@ -113,34 +126,76 @@ static void vInterruptHandler(nrf_drv_gpiote_pin_t p_u32Pin, nrf_gpiote_polarity
    {
    #if (EN_ADXL362 == 1)
       case ADXL_INT2:
-         PRINT_DEBUG("$RSL,INT+1+ADXL362+%d\n",(uint8_t)p_eAction);
+         if(u32Hal_GPIO_Read(ADXL_INT2))
+         {
+            PRINT_FAST("$RSL,INT+1+ADXL362+1\n");
+         }
+         else
+         {
+            PRINT_FAST("$RSL,INT+1+ADXL362+0\n");
+         }
       break;
    #endif /* NO_ADXL362 */
 
    #if (EN_MAX44009 == 1)
       case MAX44009_INT:
-         PRINT_DEBUG("$RSL,INT+1+MAX44009+%d\n",(uint8_t)p_eAction);
+         if(u32Hal_GPIO_Read(MAX44009_INT))
+         {
+            PRINT_FAST("$RSL,INT+1+MAX44009+1\n");
+         }
+         else
+         {
+            PRINT_FAST("$RSL,INT+1+MAX44009+0\n");
+         }
       break;
    #endif /* NO_MAX44009 */
 
    #if (EN_LSM6DSL == 1)
       case LSM6_INT1:
-         PRINT_DEBUG("$RSL,INT+1+LSM6_1+%d\n",(uint8_t)p_eAction);
+         if(u32Hal_GPIO_Read(LSM6_INT1))
+         {
+            PRINT_FAST("$RSL,INT+1+LSM6_1+1\n");
+         }
+         else
+         {
+            PRINT_FAST("$RSL,INT+1+LSM6_1+0\n");
+         }
       break;
       case LSM6_INT2:
-         PRINT_DEBUG("$RSL,INT+1+LSM6_2+%d\n",(uint8_t)p_eAction);
+         if(u32Hal_GPIO_Read(LSM6_INT2))
+         {
+            PRINT_FAST("$RSL,INT+1+LSM6_2+1\n");
+         }
+         else
+         {
+            PRINT_FAST("$RSL,INT+1+LSM6_2+0\n");
+         }
       break;
    #endif /* NO_LSM6DSL */
 
    #if (EN_LIS2MDL == 1)
       case LIS2_INT:
-         PRINT_DEBUG("$RSL,INT+1+LIS2+%d\n",(uint8_t)p_eAction);
+         if(u32Hal_GPIO_Read(LIS2_INT))
+         {
+            PRINT_FAST("$RSL,INT+1+LIS2+1\n");
+         }
+         else
+         {
+            PRINT_FAST("$RSL,INT+1+LIS2+0\n");
+         }
       break;
    #endif /* NO_LIS2MDL */
 
    #if (EN_ST25DV == 1)
       case ST25DV_GPO_INT:
-         PRINT_DEBUG("$RSL,INT+1+ST25DV+%d\n",(uint8_t)p_eAction);
+         if(u32Hal_GPIO_Read(ST25DV_GPO_INT))
+         {
+            PRINT_FAST("$RSL,INT+1+ST2DV+1\n");
+         }
+         else
+         {
+            PRINT_FAST("$RSL,INT+1+ST2DV+0\n");
+         }
       break;
    #endif /* NO_ST25DV */
 

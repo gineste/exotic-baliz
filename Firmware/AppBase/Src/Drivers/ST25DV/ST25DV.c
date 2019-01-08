@@ -174,21 +174,12 @@ static e_ST25DV_Error_t eST25DV_SecuritySessionClose(void);
 //static e_ST25DV_Error_t eST25DV_PasswordSet(uint64_t p_u64Pass);
 static e_ST25DV_Error_t eST25DV_PasswordPresent(uint64_t p_u64Pass);
    
-/*static void vIsI2CSecuritySessionOpen(uint8_t * p_pu8SessionOpen);
-static void vI2CPasswordSet(uint8_t * p_pau8Password, uint8_t p_u8Overwrite);
-static void vI2CPasswordGet(uint8_t * p_pau8Password);
-*/
-
 /****************************************************************************************
  * Variable declarations
  ****************************************************************************************/
-//static uint8_t g_u8ST25DVInitialized = 0u;
-//static const uint8_t g_cau8Password[8u] = {
-//   0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55
-//};
+static uint8_t g_u8ST25DVInitialized = 0u;
 
 static s_ST25DV_Context_t g_sST25DVContext;
-static uint8_t g_u8ST25DVInitialized = 0u;
 static uint8_t g_u8ST25DVCommFailure = 0u;
 
 /****************************************************************************************
@@ -274,6 +265,17 @@ e_ST25DV_Error_t eST25DV_ContextSet(s_ST25DV_Context_t p_sContext)
    return l_eError;
 }
 
+e_ST25DV_Error_t eST25DV_GPOConfigure(uint8_t p_u8MskGPO)
+{
+   e_ST25DV_Error_t l_eError = ST25DV_ERROR_ACCESS;
+   
+   if(g_u8ST25DVInitialized == 1u)
+   {
+      l_eError = eWriteRegisters(ST25DV_I2C_SYS_ADDR, SYS_REG_GPO, &p_u8MskGPO , 1u);
+   }
+   
+   return l_eError;
+}
 
 e_ST25DV_Error_t eST25DV_EndAreaSet(uint8_t p_u8Area, uint16_t p_u16EndAddress)
 {
@@ -319,6 +321,13 @@ e_ST25DV_Error_t eST25DV_PasswordSet(uint64_t p_u64Pass)
 /****************************************************************************************
  * Private functions
  ****************************************************************************************/
+/**@brief Function to read on registers.
+ * @param[in] p_u8Addr
+ * @param[in] p_u16Reg
+ * @param[out] p_pu8Value
+ * @param[in] p_u8RegNumber
+ * @return Error code
+ */
 static e_ST25DV_Error_t eReadRegisters(uint8_t p_u8Addr, uint16_t p_u16Reg, uint8_t * p_pu8Value, uint8_t p_u8RegNumber)
 {
    e_ST25DV_Error_t l_eError = ST25DV_ERROR_COMM;
@@ -349,6 +358,13 @@ static e_ST25DV_Error_t eReadRegisters(uint8_t p_u8Addr, uint16_t p_u16Reg, uint
    return l_eError;
 }
 
+/**@brief Function to write on register.
+ * @param[in] p_u8Addr
+ * @param[in] p_u16Reg
+ * @param[in] p_pau8Data
+ * @param[in] p_u8DataSize
+ * @return Error code
+ */
 static e_ST25DV_Error_t eWriteRegisters(uint8_t p_u8Addr, uint16_t p_u16Reg, uint8_t * p_pau8Data, uint8_t p_u8DataSize)
 {
    e_ST25DV_Error_t l_eError = ST25DV_ERROR_COMM;
@@ -382,6 +398,32 @@ static e_ST25DV_Error_t eWriteRegisters(uint8_t p_u8Addr, uint16_t p_u16Reg, uin
 
    return l_eError;
 }
+
+/**@brief Function to write specific bits of one register.
+ * @param[in] p_u8Register
+ * @param[in] p_u8Data
+ * @param[in] p_u8Pos
+ * @param[in] p_u8Mask
+ * @return Error code
+ */
+//static e_ST25DV_Error_t eWriteBitsReg(uint16_t p_u16Register, uint8_t p_u8Value, uint8_t p_u8Pos, uint8_t p_u8Mask)
+//{
+//   uint8_t l_u8RegVal = 0u;
+//   e_ST25DV_Error_t l_eError = ST25DV_ERROR_COMM;
+
+//   l_eError = eReadRegisters(p_u16Register, &l_u8RegVal, 1u);
+
+//   if(l_eError == ST25DV_ERROR_NONE)
+//   {
+//      l_u8RegVal &= ~p_u8Mask;
+
+//      l_u8RegVal |= ((uint8_t)p_u8Value << p_u8Pos);
+
+//      l_eError = eWriteRegister(p_u8Register, l_u8RegVal);
+//   }
+
+//   return l_eError;
+//}
 
 static e_ST25DV_Error_t eST25DV_SecuritySessionGet(uint8_t * p_pu8SSO)
 {
@@ -431,48 +473,6 @@ static e_ST25DV_Error_t eST25DV_PasswordPresent(uint64_t p_u64Pass)
    return l_eError;
 }
 
-
-///* p_pau8Password must be a 64bits value
-//   it will be written 2 times */
-//static void vI2CPasswordSet(uint8_t * p_pau8Password, uint8_t p_u8Overwrite)
-//{
-//   uint8_t l_au8Pwd[17u] = { 0u };
-//
-//   if(p_pau8Password != NULL)
-//   {
-//      memcpy(&l_au8Pwd[0u], p_pau8Password, 8u);
-//      /* Validation code */
-//      l_au8Pwd[8] = 0x07;
-//      memcpy(&l_au8Pwd[9u], p_pau8Password, 8u);
-//
-//      if(p_u8Overwrite == 1u)
-//      {
-//         if(eWriteRegisters(ST25DV_I2C_SYS_ADDR, SYS_REG_I2C_PSW, &l_au8Pwd[0u] , 17u) != 0u)
-//         {
-//
-//         }
-//
-//      }
-//      else
-//      {
-//         if(eWriteRegisters(ST25DV_I2C_SYS_ADDR, SYS_REG_I2C_PSW, &l_au8Pwd[0u] , 8u) != 0u)
-//         {
-//
-//         }
-//      }
-//   }
-//}
-//
-//static void vI2CPasswordGet(uint8_t * p_pau8Password)
-//{
-//   if(p_pau8Password != NULL)
-//   {
-//      if(eReadRegisters(ST25DV_I2C_SYS_ADDR, SYS_REG_I2C_PSW, p_pau8Password, 8u) != 0u)
-//      {
-//
-//      }
-//   }
-//}
 /****************************************************************************************
  * End Of File
  ****************************************************************************************/

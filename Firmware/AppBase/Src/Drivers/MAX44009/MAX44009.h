@@ -90,7 +90,7 @@ e_MAX44009_Error_t eMAX44009_ConversionModeSet(e_MAX44009_Cont_t p_eConversion,
                                           e_MAX44009_BrightessMode_t p_eBrightness);
 e_MAX44009_Error_t eMAX44009_BrightnessRead(uint8_t * p_pau8RawData);
 e_MAX44009_Error_t eMAX44009_BrightnessGet(uint32_t * p_pu32Brightness);
-e_MAX44009_Error_t eMAX44009_InterruptCfg(uint8_t p_u8Activate, uint32_t p_u32HighThr, uint32_t p_u32LowThr, uint16_t p_u16Timer);
+e_MAX44009_Error_t eMAX44009_InterruptCfg(uint8_t p_u8Activate, uint32_t p_u32HighThr, uint32_t p_u32LowThr, uint16_t p_u16TimeMs);
 e_MAX44009_Error_t eMAX44009_InterruptStatusGet(uint8_t * p_pu8IntStatus);
 e_MAX44009_Error_t eMAX44009_ThresholdGet(uint32_t * p_pu32ThrHigh, uint32_t * p_pu32ThrLow, uint16_t * p_pu16ThrTimer);
 uint8_t u8MAX44009_IsAvailable(void);

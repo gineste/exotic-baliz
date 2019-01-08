@@ -30,6 +30,8 @@
 /* Application includes */
 #include "SigFox.h"
 #include "UartManagement.h"
+#include "HardwareTest.h"
+
 /* HAL Includes */
 #include "HAL/HAL_Timer.h"
 #include "HAL/HAL_GPIO.h"
@@ -278,6 +280,9 @@ static void vBackgroundProcess(void)
    
    /* SigFox */
    vSigFox_Process();   
+   
+   /* Hardware Test */
+   vHT_BackgroundProcess();
 }
 
 /**********************************************

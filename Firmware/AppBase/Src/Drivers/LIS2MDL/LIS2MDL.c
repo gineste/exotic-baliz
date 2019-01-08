@@ -119,6 +119,21 @@
 #define INT_CTRL_REG_XYZEN_MSK   (uint8_t)0x20
 
 /* INT_SOURCE_REG */
+#define INT_SOURCE_REG_INT_POS      (uint8_t)0
+#define INT_SOURCE_REG_INT_MSK      (uint8_t)0x01
+#define INT_SOURCE_REG_N_TH_Z_POS   (uint8_t)2
+#define INT_SOURCE_REG_N_TH_Z_MSK   (uint8_t)0x04
+#define INT_SOURCE_REG_N_TH_Y_POS   (uint8_t)3
+#define INT_SOURCE_REG_N_TH_Y_MSK   (uint8_t)0x08
+#define INT_SOURCE_REG_N_TH_X_POS   (uint8_t)4
+#define INT_SOURCE_REG_N_TH_X_MSK   (uint8_t)0x10
+#define INT_SOURCE_REG_P_TH_Z_POS   (uint8_t)5
+#define INT_SOURCE_REG_P_TH_Z_MSK   (uint8_t)0x20
+#define INT_SOURCE_REG_P_TH_Y_POS   (uint8_t)6
+#define INT_SOURCE_REG_P_TH_Y_MSK   (uint8_t)0x40
+#define INT_SOURCE_REG_P_TH_X_POS   (uint8_t)7
+#define INT_SOURCE_REG_P_TH_X_MSK   (uint8_t)0x80
+
 
 #define EXIT_ERROR_CHECK(error)  do {     \
       if((error != LIS2MDL_ERROR_NONE))   \
@@ -127,6 +142,8 @@
       }                                   \
    }while(0);
 
+#define SENSITIVITY              (float)1.5f
+   
 /****************************************************************************************
  * Private type declarations
  ****************************************************************************************/
@@ -271,6 +288,15 @@ e_LIS2MDL_Error_t eLIS2MDL_BigLittleEndian(uint8_t p_u8LittleEndian)
    return eWriteBitsReg(CFG_REG_C, (uint8_t)p_u8LittleEndian, CFG_REG_C_BLE_POS, CFG_REG_C_BLE_MSK);
 }
 
+/**@brief Set Block Data Update.
+ * @param[in]  p_u8Enable : 1 to active else 0.
+ * @return Error Code.
+ */
+e_LIS2MDL_Error_t eLIS2MDL_BlockDataUpdateSet(uint8_t p_u8Enable)
+{
+   return eWriteBitsReg(CFG_REG_C, (uint8_t)p_u8Enable, CFG_REG_C_BDU_POS, CFG_REG_C_BDU_MSK);
+}
+
 /**@brief Self Test.
  * @param[in]  p_u8Activate : 1 to active
  * @return Error Code.
@@ -391,15 +417,26 @@ e_LIS2MDL_Error_t eLIS2MDL_TemperatureRead(void)
          (void)eLIS2MDL_ModeSet(LIS2MDL_MODE_SINGLE_SHOT);
       }
          
-      eReadRegister(STATUS_REG, &l_au8Data[0u], 1u);
-      l_u8DataRdy = (l_au8Data[0u] & 0x08);
-      while((l_u8DataRdy == 0u) && (l_u8Retry > 0u))
-      {
+      
+      /* Check Status Register */
+      do {
+         /* Wait Acquisition time */
          (*g_sLIS2MDLContext.fp_vDelay_ms)(DELAY_DRDY);
-         eReadRegister(STATUS_REG, &l_au8Data[0u], 1u);
+         l_eErrCode = eReadRegister(STATUS_REG, &l_au8Data[0u], 1u);
          l_u8DataRdy = (l_au8Data[0u] & 0x08);
+         EXIT_ERROR_CHECK(l_eErrCode);
          l_u8Retry--;
-      }
+      } while( (l_u8DataRdy == 0u) && (l_u8Retry != 0u) );
+      
+//      eReadRegister(STATUS_REG, &l_au8Data[0u], 1u);
+//      l_u8DataRdy = (l_au8Data[0u] & 0x08);
+//      while((l_u8DataRdy == 0u) && (l_u8Retry > 0u))
+//      {
+//         (*g_sLIS2MDLContext.fp_vDelay_ms)(DELAY_DRDY);
+//         eReadRegister(STATUS_REG, &l_au8Data[0u], 1u);
+//         l_u8DataRdy = (l_au8Data[0u] & 0x08);
+//         l_u8Retry--;
+//      }
    
       if(l_u8Retry != 0u)
       {
@@ -426,7 +463,18 @@ e_LIS2MDL_Error_t eLIS2MDL_InterruptCtrlSet(uint8_t p_u8Activate, e_LIS2MDL_Inte
    e_LIS2MDL_Error_t l_eErrCode = LIS2MDL_ERROR_PARAM;
    uint8_t l_u8RegVal = 0u;
 
-   /* Read Register */
+   /* Read Register for INT on PIN */
+   l_eErrCode = eReadRegister(CFG_REG_C, &l_u8RegVal, 1u);
+   EXIT_ERROR_CHECK(l_eErrCode);
+   
+   /* INT on PIN */
+   l_u8RegVal &= ~CFG_REG_C_INTPIN_MSK;          
+   l_u8RegVal |= ((uint8_t)p_u8Activate << CFG_REG_C_INTPIN_POS);
+   
+   l_eErrCode = eWriteRegister(CFG_REG_C, l_u8RegVal);
+   EXIT_ERROR_CHECK(l_eErrCode);
+   
+   /* Read Register for INT Config */
    l_eErrCode = eReadRegister(INT_CTRL_REG, &l_u8RegVal, 1u);
    EXIT_ERROR_CHECK(l_eErrCode);
    
@@ -448,31 +496,80 @@ e_LIS2MDL_Error_t eLIS2MDL_InterruptCtrlSet(uint8_t p_u8Activate, e_LIS2MDL_Inte
       
    l_eErrCode = eWriteRegister(INT_CTRL_REG, l_u8RegVal);
    EXIT_ERROR_CHECK(l_eErrCode);
+      
+   return l_eErrCode;
+}
+/**@brief Get Interrupt Source Register status.
+ * @param[out]  p_ps8ThsX : 1 if threshold exceeds positive value on X axis, 
+ *                         -1 if exceeds negative value, else 0.
+ * @param[out]  p_ps8ThsY : 1 if threshold exceeds positive value on Y axis, 
+ *                         -1 if exceeds negative value, else 0.
+ * @param[out]  p_ps8ThsZ : 1 if threshold exceeds positive value on Z axis,
+ *                         -1 if exceeds negative value, else 0.
+ * @param[out]  p_pu8Int : 1 if interrupt event occurs, else 0.
+ * @return Error code.
+ */
+e_LIS2MDL_Error_t eLIS2MDL_InterruptStatusGet(int8_t * p_ps8ThsX, int8_t * p_ps8ThsY, int8_t * p_ps8ThsZ, uint8_t * p_pu8Int)
+{
+   e_LIS2MDL_Error_t l_eErrCode = LIS2MDL_ERROR_PARAM;
+   uint8_t l_u8RegVal = 0u;
+   int8_t l_s8BitCheck = 0u;
+   int8_t l_s8BitNCheck = 0u;
    
-   /* Read Register */
-   l_eErrCode = eReadRegister(CFG_REG_C, &l_u8RegVal, 1u);
-   EXIT_ERROR_CHECK(l_eErrCode);
-   /* INT on PIN */
-   l_u8RegVal &= ~CFG_REG_C_INTPIN_MSK;          
-   l_u8RegVal |= ((uint8_t)p_u8Latched << CFG_REG_C_INTPIN_POS);
-   
-   l_eErrCode = eWriteRegister(CFG_REG_C, l_u8RegVal);
-   EXIT_ERROR_CHECK(l_eErrCode);
+   if(   (p_ps8ThsX != NULL)
+      && (p_ps8ThsY != NULL)
+      && (p_ps8ThsZ != NULL)
+      && (p_pu8Int != NULL) )
+   {
+      l_eErrCode = eReadRegister(INT_SOURCE_REG, &l_u8RegVal, 1u);
+      
+      EXIT_ERROR_CHECK(l_eErrCode);
+      /* X Check */
+      l_s8BitNCheck = (l_u8RegVal) & (1<<(INT_SOURCE_REG_N_TH_X_POS));
+      l_s8BitNCheck = (l_s8BitNCheck == INT_SOURCE_REG_N_TH_X_MSK)? -1:0;
+      l_s8BitCheck = (l_u8RegVal) & (1<<(INT_SOURCE_REG_P_TH_X_POS));
+      l_s8BitCheck = ((uint8_t)l_s8BitCheck == INT_SOURCE_REG_P_TH_X_MSK)? 1:0;
+      (*p_ps8ThsX) = (l_s8BitNCheck > l_s8BitCheck)? l_s8BitCheck:l_s8BitNCheck;
+      
+      /* Y Check */
+      l_s8BitNCheck = (l_u8RegVal) & (1<<(INT_SOURCE_REG_N_TH_Y_POS));
+      l_s8BitNCheck = (l_s8BitNCheck == INT_SOURCE_REG_N_TH_Y_MSK)? -1:0;
+      l_s8BitCheck = (l_u8RegVal) & (1<<(INT_SOURCE_REG_P_TH_Y_POS));
+      l_s8BitCheck = ((uint8_t)l_s8BitCheck == INT_SOURCE_REG_P_TH_Y_MSK)? 1:0;
+      
+      (*p_ps8ThsY) = (l_s8BitNCheck > l_s8BitCheck)? l_s8BitCheck:l_s8BitNCheck;
+      /* Z Check */
+      l_s8BitNCheck = (l_u8RegVal) & (1<<(INT_SOURCE_REG_N_TH_Z_POS));
+      l_s8BitNCheck = (l_s8BitNCheck == INT_SOURCE_REG_N_TH_Z_MSK)? -1:0;
+      l_s8BitCheck = (l_u8RegVal) & (1<<(INT_SOURCE_REG_P_TH_Z_POS));
+      l_s8BitCheck = ((uint8_t)l_s8BitCheck == INT_SOURCE_REG_P_TH_Z_MSK)? 1:0;
+      (*p_ps8ThsZ) = (l_s8BitNCheck > l_s8BitCheck)? l_s8BitCheck:l_s8BitNCheck;
+      
+      /* Int Check */
+      (*p_pu8Int) = (l_u8RegVal) & (1<<(INT_SOURCE_REG_INT_POS));
+      
+   }
    
    return l_eErrCode;
 }
 
-/**@brief Set threshold.
+/**@brief Set threshold. This threshold is common to all three (axes) output values and
+ * is unsigned unipolar. The threshold value is correlated to the current gain and it is unsigned
+ * because the threshold is considered as an absolute value, but crossing the threshold is
+ * detected for both positive and negative sides
  * @param[in]  p_u16TresholdmG : threshold in mG.
  * @return Error code.
  */
 e_LIS2MDL_Error_t eLIS2MDL_ThresholdSet(uint16_t p_u16TresholdmG)
 {
    e_LIS2MDL_Error_t l_eErrCode = LIS2MDL_ERROR_PARAM;
+   uint32_t l_u32Threshold = (uint32_t)((float)p_u16TresholdmG / SENSITIVITY);
    
-   l_eErrCode = eWriteRegister(INT_THS_L_REG, (uint8_t)((uint16_t)p_u16TresholdmG & 0x00FF));
+   l_u32Threshold = (l_u32Threshold > UINT16_MAX) ? UINT16_MAX:l_u32Threshold;
+   
+   l_eErrCode = eWriteRegister(INT_THS_L_REG, (uint8_t)((uint16_t)l_u32Threshold & 0x00FF));
    EXIT_ERROR_CHECK(l_eErrCode);
-   l_eErrCode = eWriteRegister(INT_THS_H_REG, (uint8_t)(((uint16_t)p_u16TresholdmG & 0xFF00) >> 8u));
+   l_eErrCode = eWriteRegister(INT_THS_H_REG, (uint8_t)(((uint16_t)l_u32Threshold & 0xFF00) >> 8u));
    EXIT_ERROR_CHECK(l_eErrCode);
    
    return l_eErrCode;
@@ -487,7 +584,7 @@ e_LIS2MDL_Error_t eLIS2MDL_ThresholdSet(uint16_t p_u16TresholdmG)
 e_LIS2MDL_Error_t eLIS2MDL_MagDataGet(int16_t * p_ps16X, int16_t * p_ps16Y, int16_t * p_ps16Z)
 {
    e_LIS2MDL_Error_t l_eErrCode = LIS2MDL_ERROR_PARAM;
-   static const float l_fSensitivity = 1.5f;
+   static const float l_fSensitivity = SENSITIVITY;
    int32_t l_s32MagX = (int16_t)g_au16RawMag[0u];
    int32_t l_s32MagY = (int16_t)g_au16RawMag[1u];
    int32_t l_s32MagZ = (int16_t)g_au16RawMag[2u];

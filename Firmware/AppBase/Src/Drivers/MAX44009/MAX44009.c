@@ -258,21 +258,21 @@ e_MAX44009_Error_t eMAX44009_BrightnessGet(uint32_t * p_pu32Brightness)
  * @param[in]  p_u8Activate : Activate or Not Interrupt.
  * @param[in]  p_u32HighThr : High threshold detection.
  * @param[in]  p_u32LowThr : Low threshold detection.
- * @param[in]  p_u16Timer : Timer Threshold.
+ * @param[in]  p_u16Timer : Time Threshold in ms.
  * @return Error Code.
  */
-e_MAX44009_Error_t eMAX44009_InterruptCfg(uint8_t p_u8Activate, uint32_t p_u32HighThr, uint32_t p_u32LowThr, uint16_t p_u16Timer)
+e_MAX44009_Error_t eMAX44009_InterruptCfg(uint8_t p_u8Activate, uint32_t p_u32HighThr, uint32_t p_u32LowThr, uint16_t p_u16TimeMs)
 {
    e_MAX44009_Error_t l_eError = MAX44009_ERROR_INIT;
    uint8_t l_u8Register = 0u;
-
+   
    if(g_u8IsInitialized == 1u)
    {
       if(p_u8Activate == 1u)
       {  /* Check parameters */
          if(   (p_u32HighThr > p_u32LowThr)
-            && (p_u16Timer > MIN_THR_TIMER)
-            && (p_u16Timer < MAX_THR_TIMER))
+            && (p_u16TimeMs >= MIN_THR_TIMER)
+            && (p_u16TimeMs <= MAX_THR_TIMER))
          {
             /* Compute High Threshold Register */
             l_u8Register = u8ThresholdCompute(p_u32HighThr);
@@ -285,7 +285,7 @@ e_MAX44009_Error_t eMAX44009_InterruptCfg(uint8_t p_u8Activate, uint32_t p_u32Hi
             EXIT_ERROR_CHECK(l_eError);
 
             /* Compute Timer Threshold Register */
-            l_u8Register = u8TimerCompute(p_u16Timer);
+            l_u8Register = u8TimerCompute(p_u16TimeMs);
             l_eError = eWriteRegister(THR_TIMER, l_u8Register);
             EXIT_ERROR_CHECK(l_eError);
          }

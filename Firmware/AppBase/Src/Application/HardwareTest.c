@@ -78,6 +78,7 @@
 #define TIMER_TIMEOUT_MS            500u
 #define TIMEOUT_SIGFOX_INIT         20000u // AT_TIMEOUT_MIN * 2
 #define RTC_TIMER_TIMEOUT_MS        1u
+#define INT_SENSOR_UPDATE           100u
 
 /****************************************************************************************
  * Private type declarations
@@ -133,6 +134,7 @@ static void vINT_Clear(void);
       
 static void vHTTimeOutHandler(void * p_pvContext);
 static void vHTRTCHandler(void * p_pvContext);
+static void vHTSensorUpdateHandler(void * p_pvContext);
 
 static void vGPSInit(void);
 static void vBME_SingleShotRead(void);
@@ -265,6 +267,7 @@ static uint8_t g_u8I2CInitSensors = 0u;
 static uint8_t g_u8RTCCheck = 0u;   
 static uint8_t g_u8INTCheck = 0u;   
    
+static uint8_t g_u8UpdateSensor = 0u;
    
 static uint8_t g_u8BLERadioInit = 0u;
 static uint8_t g_u8BLERadioChannel = 0u;
@@ -274,6 +277,7 @@ static uint8_t g_u8SigFoxCWTest = 0u;
 
 HAL_TIMER_DEF(g_TimeOutTestIdx);
 HAL_TIMER_DEF(g_RTCTestIdx);
+HAL_TIMER_DEF(g_SensorUpdateIdx);
 
 /* Must be in the same order of e_HT_Commands_t */
 const char g_cachCmd[HT_CMD_LAST][CMD_FRAME_SIZE+1u] = {
@@ -333,6 +337,7 @@ void vHT_Init(void)
 {
    (void)eHal_Timer_Create(&g_TimeOutTestIdx, HAL_TIMER_MODE_SINGLE_SHOT, &vHTTimeOutHandler);
    (void)eHal_Timer_Create(&g_RTCTestIdx, HAL_TIMER_MODE_REPEATED, &vHTRTCHandler);   
+   (void)eHal_Timer_Create(&g_SensorUpdateIdx, HAL_TIMER_MODE_REPEATED, &vHTSensorUpdateHandler);   
 }
 
 void vHT_CheckInput(uint8_t * p_au8Frame, uint8_t p_u8Size)
@@ -357,7 +362,31 @@ void vHT_CheckInput(uint8_t * p_au8Frame, uint8_t p_u8Size)
    }
 }
 
-
+void vHT_BackgroundProcess(void)
+{
+   if( (g_u8INTCheck == 1u) && (g_u8UpdateSensor == 1u) )
+   {
+      if(g_u8I2CInitSensors == 1u)
+      { 
+         #if (EN_BME280 == 1)
+         #endif
+         
+         #if (EN_MAX44009 == 1)  
+         #endif
+         
+         #if (EN_LSM6DSL == 1)
+               (void)eLSM6DSL_AccelRead();
+               (void)eLSM6DSL_GyroRead();
+         #endif
+         
+         #if (EN_LIS2MDL == 1)
+               (void)eLIS2MDL_MagneticRead();
+         #endif
+      }
+      
+      g_u8UpdateSensor = 0u;
+   }
+}
 
 /****************************************************************************************
  * Private functions
@@ -438,14 +467,13 @@ static void vHT_NewTestProcess(e_HT_Commands_t p_eCmd)
          break;
       case HT_CMD_INT:
          PRINT_FAST("$ACK,INT+1\n");
-         if(g_u8INTCheck == 0u)
-         {
+         if(g_u8INTCheck == 0u){
             vIntManagerInit();
             vINT_Configure();
+            (void)eHal_Timer_Start(g_SensorUpdateIdx, INT_SENSOR_UPDATE);
             g_u8INTCheck = 1u;
          }
-         else
-         {
+         else{
             vINT_Clear();
          }
          break;
@@ -593,7 +621,7 @@ static void vStartI2CSensorsInitTest(void)
    if(eMAX44009_ContextSet(g_sMAXContext) == MAX44009_ERROR_NONE)
    { 
       if(eMAX44009_ConversionModeSet(MAX44009_DEFAULT,MAX44009_AUTOMATIC, 
-                                    MAX44009_INT_TIME_25MS,MAX44009_HIGH_BRIGHTNESS) == MAX44009_ERROR_NONE)
+                                    MAX44009_INT_TIME_800MS,MAX44009_HIGH_BRIGHTNESS) == MAX44009_ERROR_NONE)
       {
          l_u8Error = 0u;
       }
@@ -616,6 +644,10 @@ static void vStartI2CSensorsInitTest(void)
       if(eLSM6DSL_WhoAmIGet(&l_u8ChipID) == LSM6DSL_ERROR_NONE)
       {
          l_u8Error = (l_u8ChipID == LSM6DSL_WHO_I_AM_ID)? 0u : 1u;
+         (void)eLSM6DSL_BlockDataUpdateSet(1u);
+         (void)eLSM6DSL_AccelCfgSet(LSM6DSL_ODR_833Hz, LSM6DSL_ACCEL_RANGE_2G, LSM6DSL_MODE_LOW_POWER);
+         (void)eLSM6DSL_GyroCfgSet(LSM6DSL_ODR_833Hz, LSM6DSL_GYRO_RANGE_250DPS, LSM6DSL_MODE_LOW_POWER);
+            
       }
    }
    
@@ -635,7 +667,10 @@ static void vStartI2CSensorsInitTest(void)
    {
       if(eLIS2MDL_WhoAmIGet(&l_u8ChipID) == LIS2MDL_ERROR_NONE)
       {
-         eLIS2MDL_LowPower(1u);
+         (void)eLIS2MDL_LowPower(1u);
+         (void)eLIS2MDL_BlockDataUpdateSet(1u);
+         (void)eLIS2MDL_OutputDataRateSet(LIS2MDL_ODR_10Hz);
+         (void)eLIS2MDL_ModeSet(LIS2MDL_MODE_SINGLE_SHOT);
          l_u8Error = (l_u8ChipID == LIS2MDL_WHO_AM_I_ID)? 0u : 1u;
       }
    }
@@ -656,7 +691,14 @@ static void vStartI2CSensorsInitTest(void)
 #endif
    
 #if (EN_ST25DV == 1)
-
+   if(eST25DV_ContextSet(g_sST25DVContext) == ST25DV_ERROR_NONE)
+   {
+      PRINT_FAST("$RSL,ISS+1+ST25DV\n");
+   }
+   else
+   {
+      PRINT_FAST("$RSL,ISS+0+ST25DV\n");
+   }
 #endif
    
 #if (EN_LTC2943 == 1)
@@ -718,7 +760,7 @@ static void vStartI2CSensorsReadTest(void)
       
       #if (EN_LSM6DSL == 1)
          l_u8Error = 1u;    
-         if(eLSM6DSL_AccelCfgSet(LSM6DSL_ODR_833Hz, LSM6DSL_ACCEL_RANGE_2G, LSM6DSL_MODE_LOW_POWER) == LSM6DSL_ERROR_NONE)
+//         if(eLSM6DSL_AccelCfgSet(LSM6DSL_ODR_833Hz, LSM6DSL_ACCEL_RANGE_2G, LSM6DSL_MODE_LOW_POWER) == LSM6DSL_ERROR_NONE)
          {
             if(eLSM6DSL_AccelRead() == LSM6DSL_ERROR_NONE)
             {
@@ -727,7 +769,7 @@ static void vStartI2CSensorsReadTest(void)
                   PRINT_DEBUG("Acc X : %d mG, ", l_s16X);
                   PRINT_DEBUG("Acc Y : %d mG, ", l_s16Y);
                   PRINT_DEBUG("Acc Z : %d mG\n", l_s16Z);
-                  eLSM6DSL_AccelCfgSet(LSM6DSL_ODR_POWER_DOWN, LSM6DSL_ACCEL_RANGE_2G, LSM6DSL_MODE_LOW_POWER);
+//                  eLSM6DSL_AccelCfgSet(LSM6DSL_ODR_POWER_DOWN, LSM6DSL_ACCEL_RANGE_2G, LSM6DSL_MODE_LOW_POWER);
                   l_u8Error = 0u;
                }
             } 
@@ -735,7 +777,7 @@ static void vStartI2CSensorsReadTest(void)
          if(l_u8Error == 0u)
          {
             l_u8Error = 1u;
-            if(eLSM6DSL_GyroCfgSet(LSM6DSL_ODR_833Hz, LSM6DSL_GYRO_RANGE_250DPS, LSM6DSL_MODE_LOW_POWER) == LSM6DSL_ERROR_NONE)
+//            if(eLSM6DSL_GyroCfgSet(LSM6DSL_ODR_833Hz, LSM6DSL_GYRO_RANGE_250DPS, LSM6DSL_MODE_LOW_POWER) == LSM6DSL_ERROR_NONE)
             {
                if(eLSM6DSL_GyroRead() == LSM6DSL_ERROR_NONE)
                {
@@ -744,7 +786,7 @@ static void vStartI2CSensorsReadTest(void)
                      PRINT_DEBUG("Gyr X : %d dps, ", l_s16X);
                      PRINT_DEBUG("Gyr Y : %d dps, ", l_s16Y);
                      PRINT_DEBUG("Gyr Z : %d dps\n", l_s16Z);
-                     eLSM6DSL_GyroCfgSet(LSM6DSL_ODR_POWER_DOWN, LSM6DSL_GYRO_RANGE_250DPS, LSM6DSL_MODE_LOW_POWER);
+//                     eLSM6DSL_GyroCfgSet(LSM6DSL_ODR_POWER_DOWN, LSM6DSL_GYRO_RANGE_250DPS, LSM6DSL_MODE_LOW_POWER);
                      l_u8Error = 0u;
                   }
                }
@@ -795,7 +837,13 @@ static void vStartI2CSensorsReadTest(void)
       #endif
       
       #if (EN_VEML6075 == 1)
-      
+//      uint8_t l_u8Index = 0xFFu;
+//      PRINT_DEBUG("%s","VEML6075 Test: ");
+//      vVEML6075_Configure();
+//      vVEML6075_PollingProcess();
+//      (void)eVEML6075_UVIndexGet(&l_u8Index);
+//      PRINT_DEBUG("UV Index %d\n",l_u8Index);
+//      nrf_delay_ms(DELAY_SENSORS_READ);
       #endif
       
       #if (EN_ST25DV == 1)
@@ -861,17 +909,6 @@ static void vStartI2CSensorsReadTest(void)
    {
       PRINT_FAST("$RSL,RSS+0\n");
    }
-
-//   #if (EN_VEML6075 == 1)   
-//      uint8_t l_u8Index = 0xFFu;
-//      PRINT_DEBUG("%s","VEML6075 Test: ");
-//      vVEML6075_Configure();
-//      vVEML6075_PollingProcess();
-//      (void)eVEML6075_UVIndexGet(&l_u8Index);
-//      PRINT_DEBUG("UV Index %d\n",l_u8Index);
-//      nrf_delay_ms(DELAY_SENSORS_READ);
-//   #endif
-
 }
 
 static void vStartGPSTest(void)
@@ -1261,6 +1298,11 @@ static void vHTTimeOutHandler(void * p_pvContext)
    g_u8StopTest = 1u;   
 }
 
+static void vHTSensorUpdateHandler(void * p_pvContext)
+{
+   g_u8UpdateSensor = 1u;
+}
+
 static void vHTRTCHandler(void * p_pvContext)
 {
    vHal_GPIO_Toggle(BP1);
@@ -1566,13 +1608,15 @@ static void vINT_Configure(void)
 #endif
    
 #if (EN_MAX44009 == 1)
-   (void)eMAX44009_InterruptCfg(1u, 5000u, 50u, 100u);
+   uint8_t l_u8Status = 0u;
+   (void)eMAX44009_InterruptStatusGet(&l_u8Status);
+   (void)eMAX44009_InterruptCfg(1u, 5000u, 50u, 1000u);
 #endif
 #if (EN_LSM6DSL == 1)
 
 #endif
 #if (EN_LIS2MDL == 1)
-   (void)eLIS2MDL_ThresholdSet(1000u);
+   (void)eLIS2MDL_ThresholdSet(800u);
    (void)eLIS2MDL_InterruptCtrlSet(1u, LIS2MDL_INT_AXIS_XYZ, 1u, 0u);
 #endif
 
@@ -1600,6 +1644,11 @@ static void vINT_Clear(void)
 #if (EN_LSM6DSL == 1)
 #endif
 #if (EN_LIS2MDL == 1)
+   uint8_t l_u8Int = 0u;
+   int8_t l_s8XAxis = 0;
+   int8_t l_s8YAxis = 0;
+   int8_t l_s8ZAxis = 0;
+   (void)eLIS2MDL_InterruptStatusGet(&l_s8XAxis, &l_s8YAxis, &l_s8ZAxis, &l_u8Int);
 #endif
 #if (EN_VEML6075 == 1)
 #endif   

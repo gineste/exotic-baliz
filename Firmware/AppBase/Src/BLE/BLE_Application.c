@@ -69,7 +69,7 @@
 
 #define ADV_DATA_SIZE                   ((uint8_t)BLE_GAP_ADV_MAX_SIZE)
 #define MANUFACTURER_NAME               "Exotic-Systems"                         /**< Manufacturer. Will be passed to Device Information Service. */
-#define MANUFACTURER_ID                 (uint16_t)0x0059                         /**< Nordic Manufacturer ID */
+#define MANUFACTURER_ID                 (uint16_t)0x071D                         /**< exoTIC Systems Manufacturer ID */
 #define BLE_TX_POWER                    ((int8_t)(-8))                           /**< TX Power Level value. This will be set both in the TX Power service, in the advertising data, and also used to set the radio transmit power. */
 
 #ifdef DEBUG

@@ -37,6 +37,7 @@ void vHT_PrintHelp(void);
 void vHT_Init(void);
 void vHT_CheckInput(uint8_t * p_au8Frame, uint8_t p_u8Size);
 
+void vHT_BackgroundProcess(void);
 
 #endif /* HARDWARE_TEST_H */
 
