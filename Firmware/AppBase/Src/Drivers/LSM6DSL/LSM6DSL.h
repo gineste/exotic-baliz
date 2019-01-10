@@ -94,14 +94,6 @@ typedef enum _LSM6DSL_RANGE_GYRO_ {
    LSM6DSL_GYRO_RANGE_125DPS,
 }e_LSM6DSL_GyroFullScale_t;
 
-
-typedef enum _LSM6DSL_INTTERUPT_SOURCES_ {
-   LSM6DSL_INT_WAKEUP,
-   LSM6DSL_INT_TAP,
-   LSM6DSL_INT_D6D,
-   LSM6DSL_INT_WRIST,
-}e_LSM6DSL_InterruptSources_t;
-
 typedef struct _LSM6DSL_CONTEXT_ {
    e_LSM6DSL_Interface_t eInterface;
    struct {
