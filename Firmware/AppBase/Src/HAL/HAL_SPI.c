@@ -152,9 +152,9 @@ void vHal_SPI_Uninit(void)
 		g_u8Initialized = 0u;
       
       
-      vGPIO_InputCfg(g_sSPIContext.u32MISOPin, HALGPIO_PIN_NOPULL);
-      vGPIO_InputCfg(g_sSPIContext.u32MOSIPin, HALGPIO_PIN_NOPULL); 
-      vGPIO_InputCfg(g_sSPIContext.u32ClockPin, HALGPIO_PIN_NOPULL); 
+      vGPIO_InputCfg(g_sSPIContext.u32MISOPin, HALGPIO_PIN_PULLDOWN);
+      vGPIO_InputCfg(g_sSPIContext.u32MOSIPin, HALGPIO_PIN_PULLDOWN); 
+      vGPIO_InputCfg(g_sSPIContext.u32ClockPin, HALGPIO_PIN_PULLDOWN); 
 	}	
 }
 

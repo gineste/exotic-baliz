@@ -18,8 +18,9 @@
  * Include Files
  ************************************************************************/
 #include <stdint.h>
-#include "app_twi.h"
+#include "nrf_twi.h"
 #include "nrf_drv_twi.h"
+#include "app_twi.h"
 
 /************************************************************************
  * Defines
@@ -41,6 +42,12 @@ typedef enum _HAL_I2C_ERRORS_ {
    HALI2C_ERROR_INVALID
 }e_HalI2c_Error_t;
 
+typedef enum _HAL_I2C_FREQUENCY_ {
+    HALI2C_FREQ_100K = NRF_TWI_FREQ_100K,   ///< 100 kbps.
+    HALI2C_FREQ_250K = NRF_TWI_FREQ_250K,   ///< 250 kbps.
+    HALI2C_FREQ_400K = NRF_TWI_FREQ_400K   ///< 400 kbps.
+}e_HALI2C_Frequency_t;
+
 typedef enum _HAL_I2C_STOP_ {
    I2C_STOP = 0u,
    I2C_NO_STOP = APP_TWI_NO_STOP,
@@ -48,9 +55,17 @@ typedef enum _HAL_I2C_STOP_ {
 
 typedef void (*fpvI2CCallback)(void * p_pvData);
 
+typedef struct _HAL_I2C_CONTEXT_ {
+   uint32_t u32SCLPin;
+   uint32_t u32SDAPin;
+   e_HALI2C_Frequency_t eFrequency;
+   uint8_t u8EnablePullUp;
+}s_HalI2C_Context_t;
+
 /************************************************************************
  * Public function declarations
  ************************************************************************/
+void vHal_I2C_ContextSet(s_HalI2C_Context_t p_eContext);
 void vHal_I2C_Init(void);
 void vHal_I2C_Uninit(void);
 uint32_t u32Hal_I2C_WriteAndRead(uint8_t p_u8Address, uint8_t * p_pu8DataOut, uint8_t p_u8DataOutLen, uint8_t * p_pu8DataIn, uint8_t p_u8DataInLen);

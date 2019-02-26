@@ -125,7 +125,7 @@ static const s_USM_t g_sUartStateMachine[USM_NUMBER] = {
    {vUSM_GpsEntry,      vUSM_GpsProcess,     vUSM_GpsExit}        /* USM_GPS     */
 };
 
-#if (EN_LOG == 1)
+#if (LOG_UART == 1)
 static uint8_t g_au8UartStateString[USM_NUMBER][8u] = 
 { "IDLE\0", "SIGFOX\0", "GPS\0" };
 #endif
@@ -187,10 +187,10 @@ e_UartMngt_ErrorCode_t eUartMngt_StateSet(e_UART_State_t p_eMode)
          /* Assign new State */
          g_eUartState = p_eMode;
          
-      #if (EN_LOG == 1)
-         PRINT_INFO("%s","UART State : ");
-         PRINT_STATE("%s\n",g_au8UartStateString[g_eUartState]);  
-      #endif
+//      #if (EN_LOG == 1)
+//         PRINT_INFO("%s","UART State : ");
+//         PRINT_STATE("%s\n",g_au8UartStateString[g_eUartState]);  
+//      #endif
          
          /* Execute Entry point of new State */
          if(g_sUartStateMachine[g_eUartState].fp_vEntryPoint != NULL)

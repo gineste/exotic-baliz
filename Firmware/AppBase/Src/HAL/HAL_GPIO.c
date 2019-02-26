@@ -30,14 +30,6 @@
 /************************************************************************
  * Defines
  ************************************************************************/
-#define SENSOR_POWERDOWN_TIME (uint32_t) 15000u
-#define SENSOR_POWERDUP_TIME  (uint32_t) 200u
-
-#define SIGFOX_RST_TIME       (uint32_t) 500u
-#define SIGFOX_WU_TIME        (uint32_t) 200u
-
-#define GPS_RST_TIME          (uint32_t) 10u
-#define GPS_SD_TIME           (uint32_t) 100u
 
 /************************************************************************
  * Private type declarations
@@ -115,8 +107,8 @@ void vHal_GPIO_Init(void)
 //	vGPIO_InputCfg(MAX44009_INT, HALGPIO_PIN_NOPULL);
    
    /* BP1 */
-   vGPIO_OutputCfg(BP1, HALGPIO_PIN_NOPULL);
-	vHal_GPIO_Clear(BP1);
+//   vGPIO_OutputCfg(BP1, HALGPIO_PIN_NOPULL);
+//	vHal_GPIO_Clear(BP1);
    
    /* TWI */
 //   vGPIO_InputCfg(I2C_SDA, HALGPIO_PIN_NOPULL);

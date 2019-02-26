@@ -89,8 +89,8 @@ void vSigFox_Process(void)
 
 void vSigFox_DeviceInit(void)
 {
-   vAXSigFox_DeviceIDRead();
    vAXSigFox_DevicePACRead();
+   vAXSigFox_DeviceIDRead();
 }
 
 void vSigFox_OnDemandSend(void)
@@ -113,7 +113,7 @@ uint8_t u8SigFox_IsDevicePACOk(void)
    uint8_t l_au8PAC[AXSF_DEV_PAC_SIZE] = { 0u };
    uint8_t l_u8Size = 0u;
    
-   vAXSigFox_DeviceIdGet(l_au8PAC, &l_u8Size);
+   vAXSigFox_DevicePacGet(l_au8PAC, &l_u8Size);
       
    return (l_u8Size != 0u)?1u:0u;
 }
@@ -155,15 +155,14 @@ void vSigFox_TestRadio(uint8_t p_u8Enable, uint32_t p_u32Freq, uint8_t p_u8dBm)
       //snprintf(&l_achBuffer[12u], l_u8Size, "%d", p_u8dBm);
            
       //l_u8ASCIISize = 12u + l_u8Size;
-      snprintf(&l_achBuffer[12u], 2, "%d", p_u8dBm);
-      l_u8ASCIISize = 14u;
+      snprintf(&l_achBuffer[12u], 3, "%d", p_u8dBm);
+      l_u8ASCIISize = 15u;
    }
    else
    {    
       snprintf(l_achBuffer, 6, "0,0,0");
       l_u8ASCIISize = 6u;
    }
-   
    
    (void)eAXSigFox_SendCommand(AT_CMD_CW, (uint8_t*)l_achBuffer, l_u8ASCIISize, vCallback_Test);
 }
@@ -182,7 +181,8 @@ static void vCallback_Test(e_AT_RetVal_t p_eResult, uint8_t * p_pu8Buffer, uint8
          break;
       default:
          /* Send NACK */
-         PRINT_WARNING("%s\n","FAIL TO SEND PERIODIC UPDATE SIGFOX");
+         PRINT_FAST("$RSL,SFC+0\n");
+         //PRINT_WARNING("%s","FAIL TO CONFIGURE CLOCK WAVE SIGFOX");
       break;
    }
 }

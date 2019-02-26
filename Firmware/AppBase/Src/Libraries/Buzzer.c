@@ -137,14 +137,6 @@ nrf_pwm_sequence_t const g_sBuzTestSeqCmd =
     .end_delay       = 0u
 };
 
-//static nrf_pwm_values_common_t g_sBuzTestCmd2[] =
-//{
-//   0,0,1,2,4,6,9,12,16,20,24,29,35,40,46,53,59,66,74,81,88,96,104,112,120,
-//   128,136,144,152,160,168,175,182,190,197,203,210,216,221,227,232,236,240,
-//   244,247,250,252,254,255,255,255,255,255,254,252,250,247,244,240,236,232,
-//   227,221,216,210,203,197,190,182,175,168,160,152,144,136,128,120,112,104,
-//   96,88,81,74,66,59,53,46,40,35,29,24,20,16,12,9,6,4,2,1,0 
-//};
 static nrf_pwm_values_common_t g_sBuzTestCmd2[] =
 {
    0,0,1,2,4,6,9,12,16,20,24,29,35,40,46,53,59,66,74,81,88,96,104,112,120,
@@ -243,6 +235,11 @@ void vBuzzerSeqCmd2(void)
 //   nrf_drv_pwm_simple_playback(&g_sPWMBuzzer, &g_sBuzSeqCmd, 2, NRF_DRV_PWM_FLAG_STOP);
    //nrf_drv_pwm_simple_playback(&g_sPWMBuzzer, &g_sBuzTestSeqCmd, 30, NRF_DRV_PWM_FLAG_STOP);
 #endif
+}
+
+uint8_t u8BuzzerIsStopped(void)
+{
+   return (uint8_t)nrf_drv_pwm_is_stopped(&g_sPWMBuzzer);
 }
 /************************************************************************
  * Private functions

@@ -28,14 +28,6 @@
 /****************************************************************************************
  * Public function declarations
  ****************************************************************************************/
-float Tool_StringToFloat(uint8_t * p, uint8_t size);
-uint16_t Tool_StringToInt(uint8_t * p, uint8_t size);
-
-uint8_t Tool_AsciiToHexa(uint8_t ascii);
-
-float Tool_Abs(float a);
-
-
 void vMantExpEncoder(uint32_t p_u32DataIn, uint8_t p_u8MantBits, uint8_t p_u8ExpBits, float p_fCoef, uint32_t * p_pu32Mantissa, uint32_t * p_pu32Exponant, uint32_t * p_pu32DataOut);
 void vMantExpDecoder(uint32_t * p_pu32DataOut, uint16_t p_u16Mantissa, uint16_t p_u16Exponant, float p_fCoef);
 
@@ -44,4 +36,6 @@ uint8_t u8BattPackToPercent(uint8_t p_u8PackNb, uint16_t p_u16VoltagemV);
 void vTool_EncodeGPSPosition(double p_dLatitude, double p_dLongitude, char p_chLatNS, char p_chLonEW, uint8_t * p_pau8EncodedData, uint8_t * p_pu8Size);
 void vTool_ASCIIConvert(uint8_t * p_pu8DataIn, uint8_t p_u8SizeIn, uint8_t * p_pu8DataOut, uint8_t * p_pu8SizeOut);
 
+float f32Tool_AltitudeCompute(float p_f32PressurehPaAt0, float p_f32PressurehPa, float p_f32TemperatureDegC);
+   
 #endif /* TOOL_H */

@@ -22,10 +22,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <nrf_drv_gpiote.h>
-#include "board.h"
-#include "GlobalDefs.h"
-
 #include "ADXL362.h"
 
 /************************************************************************
@@ -194,8 +190,6 @@ static e_ADXL362_ErrorCode_t eRegisterSet( uint8_t p_u8Address, uint8_t * p_pu8D
 static e_ADXL362_ErrorCode_t eRegisterGet( uint8_t p_u8Address, uint8_t * p_pu8Data, uint8_t p_u8DataSize);
 static uint16_t u16ComputeThreshold(uint16_t p_u16Threshold);
 static uint16_t u16ComputeTime(e_Accel_ActIn_t p_eActOrInact, uint32_t p_u32Time);
-static void vInterruptADXL(nrf_drv_gpiote_pin_t p_u32Pin, nrf_gpiote_polarity_t p_eAction);
-static uint8_t u8InitIntADXL(void);
 
 /************************************************************************
  * Variable declarations
@@ -205,7 +199,6 @@ static uint8_t g_u8IsContextSet = 0u;
 static uint8_t g_u8IsInitialized = 0u;
 static uint8_t g_u8CommFailure = 0u;
 static s_AccelXYZ_t g_sAccelXYZ;
-static uint8_t g_u8IsAwake = 1u;
 
 /************************************************************************
  * Public functions
@@ -214,20 +207,23 @@ static uint8_t g_u8IsAwake = 1u;
  *
  * @param[in]  p_sContext : All context of ADXL362.
  *
- * @return None.
+ * @return Error Code.
  */
-void vADXL362_ContextSet(s_ADXL362_Context_t p_sContext)
-{
-   
+e_ADXL362_ErrorCode_t eADXL362_ContextSet(s_ADXL362_Context_t p_sContext)
+{   
+   e_ADXL362_ErrorCode_t l_eErrCode = ADXL362_ERROR_PARAM;
    if(p_sContext.fp_u32SPITransfer != NULL)
    {
       g_sADXL362 = p_sContext;
-      g_u8IsContextSet = 1u;      
+      g_u8IsContextSet = 1u;
+      l_eErrCode = ADXL362_ERROR_NONE;
    }
    else
    {  /* Could not communicate with sensor */
       g_u8IsContextSet = 0u;
    }
+
+   return l_eErrCode;
 }
 
 /**@brief Function to initialize ADXL362.
@@ -242,13 +238,6 @@ e_ADXL362_ErrorCode_t eADXL362_Init(void)
    {
       if(g_u8IsContextSet == 1u)
       {
-         /* Soft reset accelerometer */
-         //l_eErrCode = eADXL362_SoftReset();
-         //EXIT_ERROR_CHECK(l_eErrCode);         
-         
-         /* Wait a least 0.5 ms */
-         //(g_sADXL362.fp_vDelay_ms)(DELAY_SOFTRESET);             
-         
          /* Get accelerometer ID */
          l_eErrCode = eRegisterGet(ADXL362_REG_PARTID, l_au8ReadBuffer, 1u);
          EXIT_ERROR_CHECK(l_eErrCode);
@@ -296,7 +285,6 @@ e_ADXL362_ErrorCode_t eADXL362_Init(void)
             EXIT_ERROR_CHECK(l_eErrCode);
          
             /* Init Finished ! */
-            (void)u8InitIntADXL();
             g_u8IsInitialized = 1u;
 
          }/* not good part id */
@@ -307,7 +295,7 @@ e_ADXL362_ErrorCode_t eADXL362_Init(void)
       }
       else
       {  /* Context not set */
-         l_eErrCode = ADXL362_ERROR_INIT;
+         l_eErrCode = ADXL362_ERROR_CONTEXT;
       }
    }
    else
@@ -370,18 +358,22 @@ e_ADXL362_ErrorCode_t eADXL362_StatusGet(uint8_t * p_pu8Status)
 }
 
 /**@brief Function to Get Power glitch detection of ADXL362.
- * @return 1 if power glitch detected.
+ * @return Error Code.
  */
-uint8_t u8ADXL362_IsPowerGlitchDetected(void)
+e_ADXL362_ErrorCode_t eADXL362_IsPowerGlitchDetected(void)
 {   
+   e_ADXL362_ErrorCode_t l_eErrCode = ADXL362_ERROR_NONE;
    uint8_t l_u8StatusReg = 0xFF;
    
-   if(eRegisterGet(ADXL362_REG_STATUS, &l_u8StatusReg, 1u) == ADXL362_ERROR_NONE)
+   l_eErrCode = eRegisterGet(ADXL362_REG_STATUS, &l_u8StatusReg, 1u);
+   EXIT_ERROR_CHECK(l_eErrCode);
+
+   if((l_u8StatusReg & 0x80) == 0x80)
    {
-      l_u8StatusReg = (l_u8StatusReg & 0x80);
+      l_eErrCode = ADXL362_ERROR_POWER_GLITCH;
    }
    
-   return l_u8StatusReg;
+   return l_eErrCode;
 }
 
 /**@brief Function to Set Range of ADXL362.
@@ -883,10 +875,6 @@ uint8_t u8ADXL362_IsAvailable(void)
    return ((g_u8IsInitialized == 1u) && (g_u8CommFailure == 0u))?1u:0u;
 }
 
-uint8_t u8ADXL362_IsAwake(void)
-{
-   return g_u8IsAwake;
-}
 e_ADXL362_ErrorCode_t eADXL362_RegisterSet( uint8_t p_u8Address, uint8_t p_u8Data)
 {
    e_ADXL362_ErrorCode_t l_eErrCode;
@@ -1100,77 +1088,6 @@ static uint16_t u16ComputeTime(e_Accel_ActIn_t p_eActOrInact, uint32_t p_u32Time
       /* Nothing to do, should not happen */
    }
    return (uint16_t)l_u32Time;
-}
-
-
-static void vInterruptADXL(nrf_drv_gpiote_pin_t p_u32Pin, nrf_gpiote_polarity_t p_eAction)
-{
-	uint8_t p_u8Level = 0u;
-
-   if(p_u32Pin == g_sADXL362.u32Int2Pin)
-   {
-      p_u8Level = ((NRF_GPIO->IN >> g_sADXL362.u32Int2Pin) & 1UL);  
-      if(p_u8Level == 1u)
-      {
-         PRINT_DEBUG("Activity INT2 Detected %s","\n");
-      }
-      else
-      {
-         PRINT_DEBUG("Inactivity INT2 Detected %s","\n");
-      }
-      
-      if(g_sADXL362.fp_Int2Handler != NULL)
-      {
-         // TODO YRE : Issue when DeepSleep Mode is entered comment this line 
-         (*g_sADXL362.fp_Int2Handler)(p_u8Level);
-      }
-   }
-   else if(p_u32Pin == g_sADXL362.u32Int1Pin)
-   {
-      p_u8Level = ((NRF_GPIO->IN >> g_sADXL362.u32Int1Pin) & 1UL);  
-      if(p_u8Level == 1u)
-      {
-         PRINT_DEBUG("Activity INT1 Detected %s","\n");
-      }
-      else
-      {
-         PRINT_DEBUG("Inactivity INT1 Detected %s","\n");
-      }
-      
-      if(g_sADXL362.fp_Int1Handler != NULL)
-      {
-         // TODO YRE : Issue when DeepSleep Mode is entered comment this line 
-         (*g_sADXL362.fp_Int1Handler)(p_u8Level);
-      }
-   }
-   
-   g_u8IsAwake = p_u8Level;
-}
-
-static uint8_t u8InitIntADXL(void)
-{
-	uint32_t l_u32Errcode = 0u;
-	
-//	nrf_drv_gpiote_in_config_t l_sADXLConfig = GPIOTE_CONFIG_IN_SENSE_TOGGLE(false);
-//	l_sADXLConfig.pull = NRF_GPIO_PIN_NOPULL;
-
-//   l_u32Errcode = nrf_drv_gpiote_init();
-//   
-//   if((l_u32Errcode == 0u) || (l_u32Errcode == NRF_ERROR_INVALID_STATE))
-//   {
-//      if(g_sADXL362.u32Int2Pin != 0xFF)
-//      {
-//         l_u32Errcode = nrf_drv_gpiote_in_init(g_sADXL362.u32Int2Pin, &l_sADXLConfig, vInterruptADXL);
-//         nrf_drv_gpiote_in_event_enable(g_sADXL362.u32Int2Pin, true);
-//      }
-//      if(g_sADXL362.u32Int1Pin != 0xFF)
-//      {
-//         l_u32Errcode = nrf_drv_gpiote_in_init(g_sADXL362.u32Int1Pin, &l_sADXLConfig, vInterruptADXL);
-//         nrf_drv_gpiote_in_event_enable(g_sADXL362.u32Int1Pin, true);
-//      }
-//	}
-   
-	return (uint8_t)l_u32Errcode;
 }
 
 /************************************************************************

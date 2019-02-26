@@ -42,7 +42,7 @@
 /****************************************************************************************
  * Private function declarations
  ****************************************************************************************/
-static void vInterruptHandler(nrf_drv_gpiote_pin_t p_u32Pin, nrf_gpiote_polarity_t p_eAction);
+static inline void vInterruptHandler(nrf_drv_gpiote_pin_t p_u32Pin, nrf_gpiote_polarity_t p_eAction);
 
 /****************************************************************************************
  * Variable declarations
@@ -120,7 +120,7 @@ void vIntManagerInit(void)
 /****************************************************************************************
  * Private functions
  ****************************************************************************************/
-static void vInterruptHandler(nrf_drv_gpiote_pin_t p_u32Pin, nrf_gpiote_polarity_t p_eAction)
+static inline void vInterruptHandler(nrf_drv_gpiote_pin_t p_u32Pin, nrf_gpiote_polarity_t p_eAction)
 {
    switch(p_u32Pin)
    {

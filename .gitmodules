@@ -1,0 +1,6 @@
+[submodule "Firmware/AppBase/Src/Drivers/BME280"]
+	path = Firmware/AppBase/Src/Drivers/BME280
+	url = https://redmine.exotic-systems.com/git/l006-firmware-drivers.bme280
+[submodule "Firmware/AppBase/Src/Drivers/LIS2MDL"]
+	path = Firmware/AppBase/Src/Drivers/LIS2MDL
+	url = https://redmine.exotic-systems.com/git/l006-firmware-drivers.lis2mdl

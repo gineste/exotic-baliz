@@ -80,7 +80,7 @@
 
 #define LEDS_NUMBER        3
 
-#define LEDS_ACTIVE_STATE     0
+#define LEDS_ACTIVE_STATE  0
 
 #define LEDS_LIST          { BSP_LED_0, BSP_LED_1, BSP_LED_2 }
 

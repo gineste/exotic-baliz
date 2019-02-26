@@ -186,12 +186,12 @@
 // <q> Log Uart
 // <i> LOG_UART
 #ifndef LOG_UART
-#define LOG_UART 1
+#define LOG_UART 0
 #endif
 // <q> Log SigFox
 // <i> LOG_SIGFOX
 #ifndef LOG_SIGFOX
-#define LOG_SIGFOX 1
+#define LOG_SIGFOX 0
 #endif
 
 // <q> Log GPS
@@ -199,7 +199,16 @@
 #ifndef LOG_GPS
 #define LOG_GPS 1
 #endif
-//#undef DATA_LOGGER_EN
+// </e>
+
+#if (EN_LOG == 0)
+   #undef LOG_BLE_RX
+   #define LOG_BLE_RX 0
+   #undef LOG_BLE_TX
+   #define LOG_BLE_TX 0
+   #undef LOG_UART
+   #define LOG_UART 0
+#endif
 
 /****************************************************************************************
  * Type definitions

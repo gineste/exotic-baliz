@@ -369,7 +369,7 @@ static void vATQueueMsg(e_AT_Commands_t p_eCmd, uint8_t * p_au8Message, uint8_t 
       g_sMsgQueue[g_u8QueueInId].fpvCallback = p_fpCallback;
       
       g_u8QueueInId++;
-      if(g_u8QueueInId > QUEUE_SIZE)
+      if(g_u8QueueInId >= QUEUE_SIZE)
       {
          g_u8QueueInId = 0u;
       }
@@ -397,7 +397,7 @@ static void vATEnqueueMsg(uint8_t * p_au8Message, uint8_t * p_pu8MsgSize, fp_vAT
    g_sMsgQueue[g_u8QueueOutId].fpvCallback = NULL;
    
    g_u8QueueOutId++;   
-   if(g_u8QueueOutId > QUEUE_SIZE)
+   if(g_u8QueueOutId >= QUEUE_SIZE)
    {
       g_u8QueueOutId = 0u;
    }

@@ -21,9 +21,10 @@
 /****************************************************************************************
  * Defines
  ****************************************************************************************/
+#define FRAME_SIZE_W_ARG_MAX        (uint8_t)19u
 #define FRAME_SIZE_MAX              (uint8_t)9u
 #define START_FRAME_SIZE            (uint8_t)5u
-#define CMD_FRAME_SIZE              (uint8_t)(FRAME_SIZE_MAX - START_FRAME_SIZE)
+#define CMD_FRAME_SIZE              (uint8_t)(FRAME_SIZE_MAX - START_FRAME_SIZE - 1u)
 #define END_FRAME_CHAR              (uint8_t)'\n'
 
 /****************************************************************************************

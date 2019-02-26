@@ -32,8 +32,10 @@ typedef enum _ADXL362_ERROR_ {
    ADXL362_ERROR_COMM,
    ADXL362_ERROR_BUSY,
    ADXL362_ERROR_PARAM,   
-   ADXL362_ERROR_IC,   
+   ADXL362_ERROR_IC,
    ADXL362_ERROR_INIT,
+   ADXL362_ERROR_CONTEXT,
+   ADXL362_ERROR_POWER_GLITCH,   
 }e_ADXL362_ErrorCode_t;
 
 typedef enum _ADXL362_RANGE_{
@@ -80,13 +82,10 @@ typedef enum _ADXL362_INT_CTL_ {
 
 typedef uint32_t (*fp_u32SPI_Transfer_t )(uint8_t *p_pu8TxData, uint8_t p_u8TxDataLen, uint8_t *p_pu8RxData, uint8_t p_u8RxDataLen);
 typedef void (*fp_vTimer_Delay_ms)(uint32_t p_u32Timeout);
-typedef void (*fp_vInterruptHandler_t)(uint8_t p_u8Type);
 
 typedef struct _ADXL362_CONTEXT_ {
    fp_u32SPI_Transfer_t fp_u32SPITransfer;   /* Function pointer to a SPI transfer */
    fp_vTimer_Delay_ms fp_vDelay_ms;          /* Function pointer to a timer in ms */
-	fp_vInterruptHandler_t fp_Int1Handler;    /* Interrupt Handler for Activity and Inactivity */
-	fp_vInterruptHandler_t fp_Int2Handler;    /* Interrupt Handler for Activity and Inactivity */
    
    e_ADXL362_Range_t eRange;                 /* Range of accelerometer */
    e_ADXL362_ODR_t eOutputDataRate;          /* Output Data Rate */
@@ -115,12 +114,12 @@ typedef struct _ADXL362_CONTEXT_ {
 /************************************************************************
  * Public function declarations
  ************************************************************************/
-void vADXL362_ContextSet(s_ADXL362_Context_t p_sContext);
+e_ADXL362_ErrorCode_t eADXL362_ContextSet(s_ADXL362_Context_t p_sContext);
 e_ADXL362_ErrorCode_t eADXL362_Init(void);
 e_ADXL362_ErrorCode_t eADXL362_SoftReset(void);
 e_ADXL362_ErrorCode_t eADXL362_PartIDGet(uint8_t * p_pu8PartID);
 e_ADXL362_ErrorCode_t eADXL362_StatusGet(uint8_t * p_pu8Status);
-uint8_t u8ADXL362_IsPowerGlitchDetected(void);
+e_ADXL362_ErrorCode_t eADXL362_IsPowerGlitchDetected(void);
 e_ADXL362_ErrorCode_t eADXL362_RangeSet(e_ADXL362_Range_t p_eRange);
 e_ADXL362_ErrorCode_t eADXL362_OutputDataRateSet(e_ADXL362_ODR_t p_eOutputDataRate);
 e_ADXL362_ErrorCode_t eADXL362_HalfBandwithSet(uint8_t p_u8HalfBandwith);
@@ -137,7 +136,6 @@ e_ADXL362_ErrorCode_t eADXL362_InterruptMapSet(uint8_t p_u8InterruptNumber, e_AD
 e_ADXL362_ErrorCode_t eADXL362_AccelerationRead(void);
 void vADXL362_AccelerationGet(int16_t * p_ps16AccelX, int16_t * p_ps16AccelY, int16_t * p_ps16AccelZ);
 uint8_t u8ADXL362_IsAvailable(void);
-uint8_t u8ADXL362_IsAwake(void);
 e_ADXL362_ErrorCode_t eADXL362_RegisterSet( uint8_t p_u8Address, uint8_t p_u8Data);
 e_ADXL362_ErrorCode_t eADXL362_RegisterGet( uint8_t p_u8Address, uint8_t * p_pu8Data);
 

@@ -57,6 +57,7 @@ void vBLE_SleepModeEnter(void);
 void vBLE_SrAdvDataUpdate(uint8_t * p_pu8Data, uint8_t p_u8Size);
 void vBLE_AdvDataUpdate(uint8_t * p_pu8Data, uint8_t p_u8Size);
 void vBLE_UpdateName(char * p_chDeviceName, uint8_t p_u8Size);
-    
+void vBLE_MACAddressGet(uint8_t * p_pau8MAC, uint8_t * p_pu8Size);
+
 #endif /* BLE_APPLICATION_H */
 

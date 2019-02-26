@@ -20,11 +20,10 @@
  ****************************************************************************************/
 #include <stdint.h>
 #include <string.h>
-
-#include <nrf_delay.h>
    
 #include "board.h"
 #include "HAL/HAL_GPIO.h"
+#include "HAL/HAL_Timer.h"
 
 #include "GlobalDefs.h"
 
@@ -103,10 +102,10 @@ void vAXSigFox_DeepSleepModeSet(void)
    uint8_t l_au8Cmd[6u] = { 'A','T','$','P','=','2' }; 
    
    vHal_GPIO_Set(SIGFOX_DP_WU);
-   nrf_delay_ms(200u);  
+   vHal_Timer_DelayMs(200u);  
    
    vAT_DirectSend(l_au8Cmd, 6u, vCallback_Dummy);
-   nrf_delay_ms(200u);  /* To Get Callback from UART */
+   vHal_Timer_DelayMs(200u);  /* To Get Callback from UART */
    
    g_u8AxSigFoxInDeepSleep = 1u;
 }
@@ -118,7 +117,7 @@ void vAXSigFox_WakeUpFromDeepSleep(void)
    if(g_u8AxSigFoxInDeepSleep == 1u)
    {
       vHal_GPIO_Clear(SIGFOX_DP_WU);
-      nrf_delay_ms(200u);
+      vHal_Timer_DelayMs(200u);
       
       g_u8AxSigFoxInDeepSleep = 0u;
    }
@@ -131,7 +130,7 @@ void vAXSigFox_SleepModeSet(void)
 {   
    uint8_t l_au8Cmd[6u] = { 'A','T','$','P','=','1' }; 
    vAT_DirectSend(l_au8Cmd, 6u, vCallback_Dummy);
-   nrf_delay_ms(200u);  /* To Get Callback from UART */
+   vHal_Timer_DelayMs(200u);  /* To Get Callback from UART */
    g_u8AxSigFoxInSleep = 1u;
 }
 /**@brief Function to Wake Up AxSigFox from Sleep Mode.
@@ -144,7 +143,7 @@ void vAXSigFox_WakeUpFromSleep(void)
       /* Must do an Uart Break */
       uint8_t l_au8Cmd[2u] = { 'A','T' };
       vAT_DirectSend(l_au8Cmd, 2u, vCallback_Dummy);
-      nrf_delay_ms(200u);  /* Todo TEST if its enough */  
+      vHal_Timer_DelayMs(200u);  /* Todo TEST if its enough */  
       g_u8AxSigFoxInSleep = 0u;
    }
 }

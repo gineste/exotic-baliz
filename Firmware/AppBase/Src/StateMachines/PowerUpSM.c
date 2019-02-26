@@ -54,13 +54,7 @@
 /****************************************************************************************
  * Variable declarations
  ****************************************************************************************/
-static s_SimpleLED_Context_t g_LEDContext = {
-   .u32PinR = LEDR_PIN,
-   .u32PinG = LEDG_PIN,
-   .u32PinB = LEDB_PIN,
-   .fp_vPinClear_t = &vHal_GPIO_Clear,
-   .fp_vPinSet_t = &vHal_GPIO_Set,
-};
+
 /****************************************************************************************
  * Public functions
  ****************************************************************************************/ 
@@ -70,8 +64,16 @@ static s_SimpleLED_Context_t g_LEDContext = {
  */
 void vPowerUp_Process(void)
 {
+   s_SimpleLED_Context_t l_sLEDContext = {
+      .u32PinR = LEDR_PIN,
+      .u32PinG = LEDG_PIN,
+      .u32PinB = LEDB_PIN,
+      .fp_vPinClear_t = &vHal_GPIO_Clear,
+      .fp_vPinSet_t = &vHal_GPIO_Set,
+   };
+   
    /* LED */
-   vSimpleLED_Init(g_LEDContext);
+   vSimpleLED_Init(l_sLEDContext);
    /* Set LED to Power Up */
 //   vSimpleLED_RED();
       vSimpleLED_BLACK();

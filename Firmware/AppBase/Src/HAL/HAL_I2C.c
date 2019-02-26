@@ -27,7 +27,6 @@
 #include <nrf_drv_twi.h>
 #include <app_util_platform.h>   /* For App IRQ Priority error */
 
-#include "board.h"
 #include "HAL_GPIO.h"   /* In order to reconfigure SDA, SCL Pins */
 
 #include "app_twi.h"
@@ -35,12 +34,8 @@
 
 #include "GlobalDefs.h"
 
+/* Self Include */
 #include "HAL_I2C.h"
-
-#include "HAL_RTC.h"
-#ifdef LOG_ERROR
-   //#include "MemoryInterface.h"
-#endif
 
 /************************************************************************
  * Defines
@@ -53,7 +48,7 @@
 #define XFER_RW                     ((uint8_t)2u)  //sizeof(l_sDataTransfer)/ sizeof(l_sDataTransfer[0u])
 #define XFER_W                      ((uint8_t)1u)
 #define XFER_R                      ((uint8_t)1u)
-    
+
 #define MULTIPLE_TWI_DEVICES        1
 
 /************************************************************************
@@ -64,14 +59,12 @@ typedef enum _I2C_STATE_ {
    I2C_ENABLE   = 1u
 }e_I2C_State_t;
 
-
 /************************************************************************
  * Private function declarations
  ************************************************************************/
 static void vI2C_Enable(e_I2C_State_t p_eEnable);
 static void vDrvI2C_Init(void);
 static void vDrvI2C_Uninit(void);
-static void vI2CErrorLog(uint32_t l_u32Err);
 
 /**@brief Macro for calling error handler function specific for HAL_I2C
  *        if supplied error code any other than NRF_SUCCESS.
@@ -96,33 +89,54 @@ APP_TWI_DEF(g_sI2CInstance, MAX_PENDING_TRANSACTIONS, TWI_INSTANCE_ID);
     
 static nrf_drv_twi_config_t g_sI2CConfig = NRF_DRV_TWI_DEFAULT_CONFIG;
 static bool g_bInitialized = false;
-
+static uint8_t g_u8ContextSet = 0u;
+static uint8_t g_u8ENPullUp = 0u;
+    
 /************************************************************************
  * Public functions
  ************************************************************************/ 
+/**@brief Function to set context of TWI.
+ * @param[in]  p_eContext :   p_u8EnablePullUp : 1 to Enable Internal Pull Up
+ *                            p_u32SCLPin : SCL IO Pin
+ *                            p_u32SDAPin : SDA IO Pin
+ *                            p_eFrequency : I2C Frequency
+ * @return None
+ */
+void vHal_I2C_ContextSet(s_HalI2C_Context_t p_eContext)
+{   
+   /* Reconfigure I2C */
+   g_sI2CConfig.interrupt_priority = APP_IRQ_PRIORITY_LOW;
+   g_sI2CConfig.frequency = (nrf_twi_frequency_t)p_eContext.eFrequency;
+   g_sI2CConfig.scl = p_eContext.u32SCLPin;
+   g_sI2CConfig.sda = p_eContext.u32SDAPin;
+   g_u8ENPullUp = p_eContext.u8EnablePullUp;
+   g_u8ContextSet = 1u;
+}
+
 /**@brief Function for initializing I2C module.
  */
 void vHal_I2C_Init(void)
 {
    uint32_t l_u32ErrCode = 0u;
    
-   if(g_bInitialized == false)
+   if(g_bInitialized == true)
    {
-      /* Reconfigure I2C */
-      g_sI2CConfig.interrupt_priority = APP_IRQ_PRIORITY_LOW;
-      g_sI2CConfig.frequency = NRF_TWI_FREQ_400K;
-      g_sI2CConfig.scl = I2C_SCL;
-      g_sI2CConfig.sda = I2C_SDA;
+      vHal_I2C_Uninit();
+   }
       
+   if( (g_bInitialized == false) && (g_u8ContextSet == 1u) )
+   {      
       /* Init I2C in blocking mode */   
       l_u32ErrCode = app_twi_init(&g_sI2CInstance, &g_sI2CConfig);
       HAL_I2C_ERROR_CHECK(l_u32ErrCode); 
-   #if (MULTIPLE_TWI_DEVICES == 1)
-      vHal_GPIO_Cfg(g_sI2CConfig.sda,HALGPIO_PINDIR_INPUT,HALGPIO_PININ_CONNECT,
-            HALGPIO_PIN_PULLUP,HALGPIO_PINDRV_H0D1,HALGPIO_PIN_NOSENSE);
-      vHal_GPIO_Cfg(g_sI2CConfig.scl,HALGPIO_PINDIR_INPUT,HALGPIO_PININ_CONNECT,
-            HALGPIO_PIN_PULLUP,HALGPIO_PINDRV_H0D1,HALGPIO_PIN_NOSENSE);
-   #endif
+      
+      if(g_u8ENPullUp != 0u)
+      {
+         vHal_GPIO_Cfg(g_sI2CConfig.sda,HALGPIO_PINDIR_INPUT,HALGPIO_PININ_CONNECT,
+               HALGPIO_PIN_PULLUP,HALGPIO_PINDRV_H0D1,HALGPIO_PIN_NOSENSE);
+         vHal_GPIO_Cfg(g_sI2CConfig.scl,HALGPIO_PINDIR_INPUT,HALGPIO_PININ_CONNECT,
+               HALGPIO_PIN_PULLUP,HALGPIO_PINDRV_H0D1,HALGPIO_PIN_NOSENSE);
+      }
   
       g_bInitialized = true;
    }
@@ -166,10 +180,6 @@ uint32_t u32Hal_I2C_WriteAndRead(uint8_t p_u8Address, uint8_t * p_pu8DataOut,
    /* Write then Read */
    l_u32ErrCode = app_twi_perform(&g_sI2CInstance, l_sDataTransfer, XFER_RW, NULL);   
 	HAL_I2C_ERROR_CHECK(l_u32ErrCode);
-   if(l_u32ErrCode != NRF_SUCCESS)
-   {
-      vI2CErrorLog(l_u32ErrCode);
-   }
             
    vI2C_Enable(I2C_DISABLE);
    
@@ -200,11 +210,7 @@ uint32_t u32Hal_I2C_WriteAndReadNoStop(uint8_t p_u8Address, uint8_t * p_pu8DataO
    /* Write then Read */
    l_u32ErrCode = app_twi_perform(&g_sI2CInstance, l_sDataTransfer, XFER_RW, NULL);
 	HAL_I2C_ERROR_CHECK(l_u32ErrCode);
-   if(l_u32ErrCode != NRF_SUCCESS)
-   {
-      vI2CErrorLog(l_u32ErrCode);
-   }
-            
+   
    vI2C_Enable(I2C_DISABLE);
    
 	return l_u32ErrCode;
@@ -243,11 +249,7 @@ uint32_t u32Hal_I2C_WrnRd(uint8_t p_u8Address, uint8_t * p_pu8DataOut, uint8_t p
    /* Write then Read */
    l_u32ErrCode = app_twi_perform(&g_sI2CInstance, l_sDataTransfer, XFER_RW, NULL);
 	HAL_I2C_ERROR_CHECK(l_u32ErrCode);
-   if(l_u32ErrCode != NRF_SUCCESS)
-   {
-      vI2CErrorLog(l_u32ErrCode);
-   }
-            
+   
    vI2C_Enable(I2C_DISABLE);
    
 	return l_u32ErrCode;
@@ -273,11 +275,7 @@ uint32_t u32Hal_I2C_WrnRdCb(uint8_t p_u8Address, uint8_t * p_pu8DataOut, uint8_t
    /* Write then Read */
    l_u32ErrCode = app_twi_perform(&g_sI2CInstance, &l_sDataTransfer[0u], 1, NULL);   
    HAL_I2C_ERROR_CHECK(l_u32ErrCode);
-   if(l_u32ErrCode != NRF_SUCCESS)
-   {
-      vI2CErrorLog(l_u32ErrCode);
-   }
-   else
+   if(l_u32ErrCode == NRF_SUCCESS)
    {
       if(p_pfCallback != NULL)
       {
@@ -286,13 +284,7 @@ uint32_t u32Hal_I2C_WrnRdCb(uint8_t p_u8Address, uint8_t * p_pu8DataOut, uint8_t
       
       l_u32ErrCode = app_twi_perform(&g_sI2CInstance, &l_sDataTransfer[1u], 1, NULL);
       HAL_I2C_ERROR_CHECK(l_u32ErrCode);
-      if(l_u32ErrCode != NRF_SUCCESS)
-      {
-         vI2CErrorLog(l_u32ErrCode);
-      }
    }
-      
-
             
    vI2C_Enable(I2C_DISABLE);
    
@@ -318,10 +310,6 @@ uint32_t u32Hal_I2C_Write(uint8_t p_u8Address, uint8_t * p_pu8Data, uint8_t p_u8
    
    l_u32ErrCode = app_twi_perform(&g_sI2CInstance, l_sDataTransfer, XFER_W, NULL);
 	HAL_I2C_ERROR_CHECK(l_u32ErrCode);
-   if(l_u32ErrCode != NRF_SUCCESS)
-   {
-      vI2CErrorLog(l_u32ErrCode);
-   }
       	
    vI2C_Enable(I2C_DISABLE);
    
@@ -358,23 +346,6 @@ static void vI2C_Enable(e_I2C_State_t p_eEnable)
 //      vDrvI2C_Uninit();
 //      //nrf_drv_twi_disable(&g_sI2CInstance.twi);
 //   }
-}
-
-static void vI2CErrorLog(uint32_t l_u32Err)
-{
-#ifdef LOG_ERROR
-   static uint8_t l_u8AlrdyLog = 1u;
-   
-   if(l_u8AlrdyLog == 0u)
-   {
-      uint8_t l_au8Data[8u] = { 0u };
-      uint32_t l_u32RTC = u32Hal_RTC_TimeStampGet();
-      memcpy(&l_au8Data[0u], &l_u32Err, 4u);
-      memcpy(&l_au8Data[4u], &l_u32RTC, 4u);
-      (void)eMemItf_DbgLogWrite(l_au8Data, 8u);
-      l_u8AlrdyLog = 1u;
-   }
-#endif
 }
 
 /************************************************************************

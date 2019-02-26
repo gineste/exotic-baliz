@@ -425,11 +425,6 @@
               <FileType>1</FileType>
               <FilePath>.\Src\BLE\BLE_Application.c</FilePath>
             </File>
-            <File>
-              <FileName>BLE_Uart.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Src\BLE\BLE_Uart.c</FilePath>
-            </File>
           </Files>
         </Group>
         <Group>
@@ -569,11 +564,6 @@
               <FileName>Buzzer.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Src\Libraries\Buzzer.c</FilePath>
-            </File>
-            <File>
-              <FileName>GPS.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Src\Libraries\GPS.c</FilePath>
             </File>
             <File>
               <FileName>Tool.c</FileName>

@@ -20,6 +20,7 @@
  ****************************************************************************************/
 #include <stdint.h>
 #include <string.h>
+#include <math.h>
 
 /****************************************************************************************
  * Defines
@@ -47,115 +48,6 @@ static uint32_t u32Quick_Pow10(uint8_t p_u8n);
 /****************************************************************************************
  * Public functions
  ****************************************************************************************/ 
-/** Transform a string into float
-* @param p 		: the string to convert
-* @param size : size of the string
-* @return float converted
-*/
-float Tool_StringToFloat(uint8_t * p, uint8_t size)
-{
-  float tmpEnt = 0.0f, tmpDec = 0.0f, div = 1.0f;
-	uint8_t cursor = 0u;
-	float sign = 1.0f;
-	float result = 0.0f;
-	float result2 = 0.0f;
-	float result3 = 0.0f;
-	
-	if(*p == '-')
-	{
-		sign = -1.0f;
-		++p;
-		++cursor;
-	}
-  
-  while((*p != '.') && (*p != ',') && (*p != '*') && (cursor < size))
-  {
-    tmpEnt *= 10.0f;
-    tmpEnt += (*p - '0');
-    ++p;
-		++cursor;
-  }
-  
-  if(*p == '.')
-  {
-    ++p;
-		++cursor;
-    while((*p != ',') && (cursor < size))
-    {
-      tmpDec *= 10.0f;
-      tmpDec += (*p - '0');
-      div*=10.0f;
-      ++p;
-			++cursor;
-    }
-	}		
-	
-	result = tmpDec/div;
-	result2 = result + tmpEnt;
-	result3 = result2 * sign;
-	
-	return result3;
-}
-
-/** Transform a string into int
-* @param p 		: the string to convert
-* @param size : size of the string
-* @return uint16_t converted
-*/
-uint16_t Tool_StringToInt(uint8_t * p, uint8_t size)
-{
-  uint16_t tmpEnt = 0;
-	uint8_t cursor = 0;
-  
-  while(cursor < size)
-  {
-    tmpEnt *= 10;
-    tmpEnt += (*p - '0');
-    ++p;
-		++cursor;
-  }
-  
-  return tmpEnt;
-}
-
-/** Transform a byte into hexa number
-* @param ascii 		: the ascii byte to convert into hexa
-* @return the hexa number or 0 if there is an error
-*/
-uint8_t Tool_AsciiToHexa(uint8_t ascii)
-{
-	uint8_t result = 0;
-	
-	// 0 to 9
-	if(ascii >= 48 && ascii <= 57)
-	{
-		result = ascii - '0';
-	}
-	// A to F
-	else if(ascii >= 65 && ascii <= 70)
-	{
-		result = ascii - '0' - 7;
-	}
-	//a to f
-	else if(ascii >= 97 && ascii <= 102)
-	{
-		result = ascii - '0' - 39;
-	}
-	
-	return result;
-}
-
-float Tool_Abs(float a)
-{
-	if(a > 0)
-	{
-		return a;
-	}
-	
-	return -a;
-}
-
-
 void vMantExpEncoder(uint32_t p_u32DataIn, uint8_t p_u8MantBits, uint8_t p_u8ExpBits, float p_fCoef, uint32_t * p_pu32Mantissa, uint32_t * p_pu32Exponant, uint32_t * p_pu32DataOut)
 {
     uint32_t l_u32Threshold = 0u;
@@ -307,6 +199,21 @@ void vTool_ASCIIConvert(uint8_t * p_pu8DataIn, uint8_t p_u8SizeIn, uint8_t * p_p
    memcpy(p_pu8DataOut, l_au8DataOut, (*p_pu8SizeOut));
 }
 
+float f32Tool_AltitudeCompute(float p_f32PressurehPaAt0, float p_f32PressurehPa, float p_f32TemperatureDegC)
+{
+   const double l_f32K = 273.15f;
+//   const double l_f32Pow = (1.0f/5.257f);
+//   const double l_f32Den = 0.0065f;
+   float l_f32Altitude = 0.0f;
+   float l_f32ConvT = p_f32TemperatureDegC + l_f32K;
+   /* 
+   h = ((((p_f32PressurehPaAt0/p_f32PressurehPa)^(1/5.257)) - 1) * (p_f32TemperatureDegF + 273.15)) / 0.0065
+   */
+   //l_f32Altitude = ((pow((p_f32PressurehPaAt0 / p_f32PressurehPa), l_f32Pow) - 1.0f) * (l_f32ConvT + l_f32K)) / l_f32Den;
+   l_f32Altitude = 44330.0f * (1.0f - pow(p_f32PressurehPa / p_f32PressurehPaAt0, 0.1903f));
+   
+   return l_f32Altitude;
+}
 /****************************************************************************************
  * Private functions
  ****************************************************************************************/

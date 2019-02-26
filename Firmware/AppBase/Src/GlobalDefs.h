@@ -93,17 +93,12 @@
 #if (EN_LOG == 1)
    #define CLEAR_TERMINAL()                     \
       do {                                      \
-         SEGGER_RTT_SetTerminal(0u);            \
-         SEGGER_RTT_printf(0, RTT_CTRL_CLEAR);  \
-         SEGGER_RTT_SetTerminal(1u);            \
-         SEGGER_RTT_printf(0, RTT_CTRL_CLEAR);  \
-         SEGGER_RTT_SetTerminal(2u);            \
-         SEGGER_RTT_printf(0, RTT_CTRL_CLEAR);  \
-         SEGGER_RTT_SetTerminal(0u);            \
       }while(0)
       
    #define RESET_STYLE()                     SEGGER_RTT_printf(0, RTT_CTRL_RESET)
-   #define PRINT_FAST(p_data)                do { RESET_STYLE(); SEGGER_RTT_WriteString(0, p_data); } while(0)
+   //#define PRINT_FAST(p_data)                do { RESET_STYLE(); SEGGER_RTT_WriteString(0, p_data); } while(0)
+   #define PRINT_FAST(p_data)                do { SEGGER_RTT_WriteString(0, p_data); } while(0)
+   #define PRINT_CUSTOM(p_type, ...)                SEGGER_RTT_printf(0, p_type , __VA_ARGS__)
    #define PRINT_ARRAY(p_type, p_data, p_size)              \
       do {                                                  \
          RESET_STYLE();                                     \
@@ -116,37 +111,31 @@
    
    #define PRINT_UART(p_type, p_data)        \
       do {                                   \
-         SEGGER_RTT_SetTerminal(0u);                                                     \
-         SEGGER_RTT_printf(0, RTT_CTRL_TEXT_BRIGHT_BLACK p_type RTT_CTRL_RESET, p_data); \
+         SEGGER_RTT_printf(0, p_type , p_data); \
       } while(0)
       
    #define PRINT_UART_ARRAY(p_type, p_data, p_size)                                                      \
       do {                                                                                               \
-         RESET_STYLE();                                                                                  \
-         SEGGER_RTT_SetTerminal(0u);                                                                     \
          uint16_t l_u16Size = 0u;                                                                        \
          for(l_u16Size = 0u; l_u16Size<p_size;l_u16Size++)                                               \
          {                                                                                               \
-            SEGGER_RTT_printf(0, RTT_CTRL_TEXT_BRIGHT_BLACK p_type RTT_CTRL_RESET, *(p_data+l_u16Size)); \
+            SEGGER_RTT_printf(0, p_type , *(p_data+l_u16Size)); \
          }                                                                                               \
       } while(0)  
       
    #define PRINT_GREEN(p_type, p_data)                                                   \
       do {                                                                               \
-         SEGGER_RTT_SetTerminal(0u);                                                     \
-         SEGGER_RTT_printf(0, RTT_CTRL_TEXT_BRIGHT_BLACK p_type RTT_CTRL_RESET, p_data); \
+         SEGGER_RTT_printf(0,  p_type , p_data); \
       }while(0)
       
    #define PRINT_DEBUG(p_type, p_data)                                                   \
       do {                                                                               \
-         SEGGER_RTT_SetTerminal(0u);                                                     \
-         SEGGER_RTT_printf(0, RTT_CTRL_TEXT_BRIGHT_BLACK p_type RTT_CTRL_RESET, p_data); \
+         SEGGER_RTT_printf(0,  p_type , p_data); \
       }while(0)
       
    #define PRINT_T2(p_type, p_data)                                                \
       do {                                                                               \
-         SEGGER_RTT_SetTerminal(0u);                                                     \
-         SEGGER_RTT_printf(0, RTT_CTRL_TEXT_BRIGHT_BLACK p_type RTT_CTRL_RESET, p_data); \
+         SEGGER_RTT_printf(0,  p_type , p_data); \
       }while(0)
       
    #define PRINT_T2_ARRAY(p_type, p_data, p_size)                                                        \
@@ -156,37 +145,32 @@
          uint16_t l_u16Size = 0u;                                                                        \
          for(l_u16Size = 0u; l_u16Size<p_size;l_u16Size++)                                               \
          {                                                                                               \
-            SEGGER_RTT_printf(0, RTT_CTRL_TEXT_BRIGHT_BLACK p_type RTT_CTRL_RESET, *(p_data+l_u16Size));   \
+            SEGGER_RTT_printf(0,  p_type , *(p_data+l_u16Size));   \
          }                                                                                               \
       } while(0)
       
    #define PRINT_INFO(p_type, p_data)                                                    \
       do {                                                                               \
-         SEGGER_RTT_SetTerminal(0u);                                                     \
-         SEGGER_RTT_printf(0, RTT_CTRL_TEXT_BRIGHT_BLACK p_type RTT_CTRL_RESET, p_data); \
+         SEGGER_RTT_printf(0,  p_type , p_data); \
       }while(0)
       
    #define PRINT_STATE(p_type, p_data)                                                  \
       do {                                                                              \
-         SEGGER_RTT_SetTerminal(0u);                                                    \
-         SEGGER_RTT_printf(0, RTT_CTRL_TEXT_BRIGHT_BLACK p_type RTT_CTRL_RESET, p_data); \
+         SEGGER_RTT_printf(0,  p_type , p_data); \
       }while(0)
       
    #define PRINT_WARNING(p_type, p_data)                                                       \
       do {                                                                                     \
-         SEGGER_RTT_SetTerminal(0u);                                                           \
          SEGGER_RTT_printf(0, RTT_CTRL_TEXT_BRIGHT_BLACK "/!\\ " p_type " /!\\\n" RTT_CTRL_RESET, p_data); \
       }while(0)
       
    #define PRINT_EVENT(p_type, p_data)                                                     \
       do {                                                                                 \
-         SEGGER_RTT_SetTerminal(0u);                                                       \
-         SEGGER_RTT_printf(0, RTT_CTRL_TEXT_BRIGHT_BLACK p_type RTT_CTRL_RESET, p_data); \
+         SEGGER_RTT_printf(0,  p_type , p_data); \
       }while(0)
       
    #define PRINT_ERROR(p_type, p_data)                            \
       do {                                                        \
-         SEGGER_RTT_SetTerminal(0u);                              \
          SEGGER_RTT_printf(0, RTT_CTRL_BG_BRIGHT_RED              \
          RTT_CTRL_TEXT_BRIGHT_BLACK p_type RTT_CTRL_RESET "\n", p_data); \
       }while(0)

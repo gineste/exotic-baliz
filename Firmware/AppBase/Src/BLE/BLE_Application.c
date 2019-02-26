@@ -97,7 +97,7 @@
 
 #define FIRST_CONN_PARAMS_UPDATE_DELAY  HAL_TIMER_MS_TO_TICKS(500)               /**< Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (5 seconds). */
 #define NEXT_CONN_PARAMS_UPDATE_DELAY   HAL_TIMER_MS_TO_TICKS(100)               /**< Time between each call to sd_ble_gap_conn_param_update after the first call (30 seconds). */
-#define MAX_CONN_PARAMS_UPDATE_COUNT    16                                        /**< Number of attempts before giving up the connection parameter negotiation. */
+#define MAX_CONN_PARAMS_UPDATE_COUNT    16                                       /**< Number of attempts before giving up the connection parameter negotiation. */
 
 #define SEC_PARAM_BOND                  1                                       /**< Perform bonding. */
 #define SEC_PARAM_MITM                  0                                       /**< Man In The Middle protection not required. */
@@ -351,6 +351,18 @@ void vBLE_UpdateName(char * p_chDeviceName, uint8_t p_u8Size)
       PRINT_INFO("%s","Updated Board Name : ");
       PRINT_GREEN("%s\n", g_achBleDeviceName);
    }
+}
+
+void vBLE_MACAddressGet(uint8_t * p_pau8MAC, uint8_t * p_pu8Size)
+{
+   ble_gap_addr_t l_sDeviceAddr;
+   
+   if( (p_pau8MAC != NULL) && (p_pu8Size != NULL) )
+   {
+      sd_ble_gap_addr_get(&l_sDeviceAddr);
+      memcpy(p_pau8MAC, l_sDeviceAddr.addr, BLE_GAP_ADDR_LEN);
+      (*p_pu8Size) = BLE_GAP_ADDR_LEN;
+   }  
 }
 
 /****************************************************************************************
@@ -785,8 +797,8 @@ static void vGapParamsInit(void)
                DEVICE_NAME, l_sDeviceAddr.addr[5u],l_sDeviceAddr.addr[4u],l_sDeviceAddr.addr[3u],l_sDeviceAddr.addr[2u],l_sDeviceAddr.addr[1u],l_sDeviceAddr.addr[0u]);
    l_u8Size = (l_u8Size > DEVICE_NAME_SIZE_MAX)? DEVICE_NAME_SIZE_MAX : l_u8Size;
    
-   PRINT_INFO("%s","Default Board Name : ");
-   PRINT_GREEN("%s\n", l_pchDefaultName);
+//   PRINT_INFO("%s","Default Board Name : ");
+//   PRINT_GREEN("%s\n", l_pchDefaultName);
    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&l_sSecMode);
 
    memcpy(g_achBleDeviceName, l_pchDefaultName, l_u8Size);

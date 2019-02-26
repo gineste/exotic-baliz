@@ -53,8 +53,8 @@
 /****************************************************************************************
  * Variable declarations
  ****************************************************************************************/
-//uint8_t g_u8Char = 0u;
-uint8_t g_au8Data[FRAME_SIZE_MAX] = { 0u };
+//uint8_t g_u8Char = 0u;//FRAME_SIZE_MAX
+uint8_t g_au8Data[256u] = { 0u };
 //uint8_t g_u8PendingCmd = 0u;
 
 /****************************************************************************************
@@ -76,24 +76,38 @@ void vOperational_Entry(void)
  */
 void vOperational_Process(void)
 {
-   uint8_t l_u8RcvData = 0u;
+//   uint8_t l_u8RcvData = 0u;
+   uint8_t l_u8SizeRead = 0u;
    uint8_t l_u8Idx = 0u;
+   uint16_t r = 0u;
+   char c = '\0';
    
-   //if(SEGGER_RTT_HasKey() == 1)
-   {
-      for(l_u8Idx = 0u; l_u8Idx < (FRAME_SIZE_MAX); l_u8Idx++)
-      {      
-         l_u8RcvData += SEGGER_RTT_HasData(l_u8Idx);
-      }
-
-      if(l_u8RcvData != 0u)//FRAME_SIZE_MAX
+   
+   do { 
+      r = SEGGER_RTT_Read(0u, &c, 1u);
+      if (r == 1) 
       {
-         (void)SEGGER_RTT_Read(0,g_au8Data,FRAME_SIZE_MAX);
-         
-         vHT_CheckInput(g_au8Data, FRAME_SIZE_MAX);
-         
-         memset(g_au8Data, 0u, FRAME_SIZE_MAX);
+         if(c == '$')
+         {  /* New frame*/
+            g_au8Data[l_u8Idx++] = c;
+         }
+         else
+         {
+            if(l_u8Idx != 0u)
+            {
+               g_au8Data[l_u8Idx++] = c;
+               l_u8SizeRead = l_u8Idx;
+            }
+         }
       }
+   } while( (c != '\n') && (c != '\0') );
+      
+   
+   if(l_u8SizeRead > 0u)
+   {
+      vHT_CheckInput(g_au8Data , l_u8SizeRead);
+   
+      memset(g_au8Data, 0u, FRAME_SIZE_W_ARG_MAX);
    }
 }
 

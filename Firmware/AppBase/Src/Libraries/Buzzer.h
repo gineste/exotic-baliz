@@ -36,6 +36,7 @@ void vBuzzerSeqAct(void);
 void vBuzzerSeqInAct(void);
 void vBuzzerSeqCmd(void);
 void vBuzzerSeqCmd2(void);
+uint8_t u8BuzzerIsStopped(void);
 
 #endif // BUZZER_H
 
