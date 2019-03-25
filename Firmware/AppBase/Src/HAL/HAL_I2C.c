@@ -336,16 +336,16 @@ static void vDrvI2C_Uninit(void)
  */
 static void vI2C_Enable(e_I2C_State_t p_eEnable)
 {
-//   if(p_eEnable == I2C_ENABLE)
-//   {
-//      vHal_I2C_Init();
-//      //nrf_drv_twi_enable(&g_sI2CInstance.twi);   
-//   }
-//   else
-//   {
-//      vDrvI2C_Uninit();
-//      //nrf_drv_twi_disable(&g_sI2CInstance.twi);
-//   }
+   if(p_eEnable == I2C_ENABLE)
+   {
+      //vHal_I2C_Init();
+      nrf_drv_twi_enable(&g_sI2CInstance.twi);   
+   }
+   else
+   {
+      //vDrvI2C_Uninit();
+      nrf_drv_twi_disable(&g_sI2CInstance.twi);
+   }
 }
 
 /************************************************************************

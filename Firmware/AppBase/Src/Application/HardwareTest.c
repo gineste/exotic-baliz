@@ -95,6 +95,7 @@ typedef enum _HARDWARE_TEST_CMD_ {
    HT_CMD_SFC,
    HT_CMD_GPS,
    HT_CMD_RTC,
+   HT_CMD_CFG,
    HT_CMD_RAX,
    HT_CMD_ISS,
    HT_CMD_RSS,
@@ -122,6 +123,7 @@ static void vStartSPITest(void);
 static void vStartADXLTest(void);
 static void vStartI2CSensorsInitTest(void);
 static void vStartI2CSensorsReadTest(void);
+static void vStartI2CSensorsReadCustom(uint8_t * p_pu8Arg, uint8_t p_u8Size);
 static void vStartGPSTest(void);
 static void vStopGPSTest(void);
 static void vStartSigFoxInitTest(void);
@@ -145,7 +147,13 @@ static void vHTSensorUpdateHandler(void * p_pvContext);
 static void vGPSInit(void);
 static uint8_t u8BME_SingleShotRead(float *p_pfT, float *p_pfP, float *p_pfH);
    
-   
+static void vCfgSensor(uint8_t * p_pu8Arg, uint8_t p_u8Size);
+static void vCfgBME(uint8_t * p_pu8Arg, uint8_t p_u8Size);
+static void vCfgADX(uint8_t * p_pu8Arg, uint8_t p_u8Size);
+static void vCfgLIS(uint8_t * p_pu8Arg, uint8_t p_u8Size);
+static void vCfgLSM(uint8_t * p_pu8Arg, uint8_t p_u8Size);
+static void vCfgORG(uint8_t * p_pu8Arg, uint8_t p_u8Size);
+
 /****************************************************************************************
  * Variable declarations
  ****************************************************************************************/
@@ -288,25 +296,6 @@ HAL_TIMER_DEF(g_SensorUpdateIdx);
 
 /* Must be in the same order of e_HT_Commands_t */
 const char g_cachCmd[HT_CMD_LAST][CMD_FRAME_SIZE+1u] = {
-//   "MAC\n\0",
-//   "BLE\n\0",
-//   "SWP\n\0",
-//   "SPI\n\0",
-//   "CSF\n\0",
-//   "SFC\n\0",
-//   "GPS\n\0",
-//   "RTC\n\0",
-//   "RAX\n\0",
-//   "ISS\n\0",
-//   "RSS\n\0",
-//   "LED\n\0",
-//   "BUZ\n\0",
-//   "NFC\n\0",
-//   "INT\n\0",
-//   "LPM\n\0",
-//   "BTL\n\0",
-//   "HLP\n\0",
-//   "RST\n\0",
    "MAC\0",
    "BLE\0",
    "SWP\0",
@@ -315,6 +304,7 @@ const char g_cachCmd[HT_CMD_LAST][CMD_FRAME_SIZE+1u] = {
    "SFC\0",
    "GPS\0",
    "RTC\0",
+   "CFG\0",
    "RAX\0",
    "ISS\0",
    "RSS\0",
@@ -347,6 +337,7 @@ void vHT_PrintHelp(void)
    PRINT_FAST("SFC: Check Radio Tx SigFox 868MHz 14dBm(Scope)\n");
    PRINT_FAST("GPS: Start/Stop GPS\n");
    PRINT_FAST("RTC: Start/Stop Timer RTC\n");
+   PRINT_FAST("CFG: Configure Sensors\n");
    PRINT_FAST("SPI: Check SPI ADXL362\n");
    PRINT_FAST("RAX: Read SPI ADXL362\n");
    PRINT_FAST("ISS: Init All I2C Sensors\n");
@@ -370,7 +361,6 @@ void vHT_Init(void)
 
 void vHT_CheckInput(uint8_t * p_au8Frame, uint8_t p_u8Size)
 {
-//   uint8_t l_u8GoodStartSentence = 0u;
    e_HT_Commands_t l_eCmd = HT_CMD_LAST;
    
    if(   (p_au8Frame[0u] == '$')
@@ -385,14 +375,11 @@ void vHT_CheckInput(uint8_t * p_au8Frame, uint8_t p_u8Size)
       {
          if(p_u8Size == FRAME_SIZE_MAX)
          {
-   //         l_u8GoodStartSentence = 1u;
-   //         l_eCmd = eCommandParser(&p_au8Frame[5u], p_u8Size-5u/*CMD_FRAME_SIZE*/);
             vHT_NewTestProcess(l_eCmd, NULL, 0u);
          }
          else if (p_u8Size > FRAME_SIZE_MAX)
          {  /* Cmd with arguments */
             vHT_NewTestProcess(l_eCmd, &p_au8Frame[9u], p_u8Size - 9u);
-            __nop();
          }
          else
          {  /* Cmd not valid */
@@ -414,12 +401,12 @@ void vHT_BackgroundProcess(void)
          #endif
          
          #if (EN_LSM6DSL == 1)
-               (void)eLSM6DSL_AccelRead();
-               (void)eLSM6DSL_GyroRead();
+            (void)eLSM6DSL_AccelRead();
+            (void)eLSM6DSL_GyroRead();
          #endif
          
          #if (EN_LIS2MDL == 1)
-               (void)eLIS2MDL_MagneticRead();
+            (void)eLIS2MDL_MagneticRead();
          #endif
       }
       
@@ -488,6 +475,9 @@ static void vHT_NewTestProcess(e_HT_Commands_t p_eCmd, uint8_t * p_au8Arg, uint8
          PRINT_FAST("$ACK,RTC+1\n");
          (g_u8RTCCheck == 0u) ? vStartRTCTest():vStopRTCTest();         
          break;
+      case HT_CMD_CFG:
+         vCfgSensor(p_au8Arg,p_u8Size);
+         break;
       case HT_CMD_SPI:
          PRINT_FAST("$ACK,SPI+1\n");
          vStartSPITest();
@@ -498,11 +488,21 @@ static void vHT_NewTestProcess(e_HT_Commands_t p_eCmd, uint8_t * p_au8Arg, uint8
          break;
       case HT_CMD_ISS:
          PRINT_FAST("$ACK,ISS+1\n");
-         vStartI2CSensorsInitTest();
+         if(p_u8Size == 0u)
+         {
+            vStartI2CSensorsInitTest();
+         }
          break;
       case HT_CMD_RSS:
          PRINT_FAST("$ACK,RSS+1\n");
-         vStartI2CSensorsReadTest();
+         if(p_u8Size == 0u)
+         {
+            vStartI2CSensorsReadTest();
+         }
+         else
+         {
+            vStartI2CSensorsReadCustom(p_au8Arg,p_u8Size);
+         }
          break;
       case HT_CMD_LED:
          PRINT_FAST("$ACK,LED+1\n");
@@ -581,21 +581,19 @@ static void vStartSPITest(void)
 {
    uint8_t l_u8PartID = 0u;
    
-//   vHal_GPIO_Clear(ADXL_POWER_EN);
-//   nrf_delay_ms(500u);
    vHal_GPIO_Set(ADXL_POWER_EN);
    nrf_delay_ms(10u);
    /* Since it's the first process we run, there is no entry point for PowerUp SM */
    /* Module : SPI, I2C, etc. */
    vHal_I2C_Init();
    s_HalSpi_Context_t l_sSPIContext = {
-   .u32MOSIPin = SPI_MOSI,
-   .u32MISOPin = SPI_MISO,
-   .u32ClockPin = SPI_SCLK,
-   .u32ChipSelectPin = ADXL_CS,
-   .eMode = HALSPI_MODE_0,
-   .eFrequency = HALSPI_FREQ_1M,
-};
+      .u32MOSIPin = SPI_MOSI,
+      .u32MISOPin = SPI_MISO,
+      .u32ClockPin = SPI_SCLK,
+      .u32ChipSelectPin = ADXL_CS,
+      .eMode = HALSPI_MODE_0,
+      .eFrequency = HALSPI_FREQ_1M,
+   };
    
    vHal_SPI_ContextSet(l_sSPIContext);
    vHal_SPI_Init();
@@ -1026,6 +1024,56 @@ static void vStartI2CSensorsReadTest(void)
    
 }
 
+static void vStartI2CSensorsReadCustom(uint8_t * p_pu8Arg, uint8_t p_u8Size)
+{
+   if(p_u8Size >= 4u)
+   {
+      if(strstr((char*)p_pu8Arg, "BME") != NULL)
+      {
+         if(strstr((char*)p_pu8Arg, "CU") != NULL)
+         {
+            (void)eBME280_OSRTemperatureSet(BME280_OVERSAMPLING_2X);
+            (void)eBME280_OSRPressureSet(BME280_OVERSAMPLING_16X);
+         }
+         else
+         {
+            (void)eBME280_OSRTemperatureSet(BME280_OVERSAMPLING_1X);
+            (void)eBME280_OSRPressureSet(BME280_OVERSAMPLING_1X);
+         }         
+
+         if(eBME280_TPHRead() == BME280_ERROR_NONE)
+         {
+            
+         }
+      }
+      else if(strstr((char*)p_pu8Arg, "ADX") != NULL)
+      {
+         __nop();
+      }
+      else if(strstr((char*)p_pu8Arg, "LIS") != NULL)
+      {
+         __nop();
+      }
+      else if(strstr((char*)p_pu8Arg, "LSM") != NULL)
+      {
+         __nop();
+      }
+      else if(strstr((char*)p_pu8Arg, "MAX") != NULL)
+      {
+         __nop();
+      }
+      else
+      {
+         __nop();
+      }
+   }
+   else
+   {
+      
+   }
+      
+}
+
 static void vStartGPSTest(void)
 {   
 #if (EN_ORG1510 == 1)
@@ -1323,7 +1371,7 @@ static void vStartRTCTest(void)
       }
    }
    else
-   {      
+   {
       PRINT_FAST("$RSL,RTC+0\n");
    }
 }
@@ -1829,6 +1877,263 @@ static void vINT_Clear(void)
 #endif
    
 }
+static void vCfgSensor(uint8_t * p_pu8Arg, uint8_t p_u8Size)
+{
+   uint8_t l_u8Len = strlen((char*)p_pu8Arg);
+   
+   if(l_u8Len >= 6u)
+   {
+      if((uint8_t*)strstr((char*)p_pu8Arg, ",") == (&p_pu8Arg[3u]))
+      {
+         if(strstr((char*)p_pu8Arg, "BME") != NULL)
+         {
+            PRINT_CUSTOM("ACK,CFG+%s\n","1");
+            l_u8Len = strlen((char*)&p_pu8Arg[4u]);
+            vCfgBME(&p_pu8Arg[4u], l_u8Len);
+         }
+         else if(strstr((char*)p_pu8Arg, "ADX") != NULL)
+         {
+            PRINT_CUSTOM("ACK,CFG+%s\n","1");
+            l_u8Len = strlen((char*)&p_pu8Arg[4u]);
+            vCfgADX(&p_pu8Arg[4u], l_u8Len);
+         }
+         else if(strstr((char*)p_pu8Arg, "LIS") != NULL)
+         {
+            PRINT_CUSTOM("ACK,CFG+%s\n","1");
+            l_u8Len = strlen((char*)&p_pu8Arg[4u]);
+            vCfgLIS(&p_pu8Arg[4u], l_u8Len);
+         }
+         else if(strstr((char*)p_pu8Arg, "LSM") != NULL)
+         {
+            PRINT_CUSTOM("ACK,CFG+%s\n","1");
+            l_u8Len = strlen((char*)&p_pu8Arg[4u]);
+            vCfgLSM(&p_pu8Arg[4u], l_u8Len);
+         }
+         else if(strstr((char*)p_pu8Arg, "ORG") != NULL)
+         {
+            if(g_u8TestInProgress == 1u)
+            {
+               PRINT_CUSTOM("ACK,CFG+%s\n","1");
+               l_u8Len = strlen((char*)&p_pu8Arg[4u]);
+               vCfgORG(&p_pu8Arg[4u], l_u8Len);
+            }
+            else
+            {
+               PRINT_CUSTOM("ACK,CFG+%s\n","0");
+            }
+         }
+         else
+         {
+            PRINT_CUSTOM("ACK,CFG+%s\n","0");
+         }
+      }
+   }
+   else if(l_u8Len == 4u)
+   {
+      if(strstr((char*)p_pu8Arg, "BME") != NULL)
+      {
+         PRINT_CUSTOM("ACK,CFG+%s\n","1");
+         vCfgBME(NULL, 0u);
+      }
+      else if(strstr((char*)p_pu8Arg, "ADX") != NULL)
+      {
+         PRINT_CUSTOM("ACK,CFG+%s\n","1");
+         vCfgADX(NULL, 0u);
+      }
+      else if(strstr((char*)p_pu8Arg, "LIS") != NULL)
+      {
+         PRINT_CUSTOM("ACK,CFG+%s\n","1");
+         vCfgLIS(NULL, 0u);
+      }
+      else if(strstr((char*)p_pu8Arg, "LSM") != NULL)
+      {
+         PRINT_CUSTOM("ACK,CFG+%s\n","1");
+         vCfgLSM(NULL, 0u);
+      }
+      else
+      {
+         PRINT_CUSTOM("ACK,CFG+%s\n","0");
+      }
+   }
+   else
+   {
+      PRINT_CUSTOM("ACK,CFG+%s\n","0");
+   }
+}
+
+static void vCfgBME(uint8_t * p_pu8Arg, uint8_t p_u8Size)
+{
+   if(p_u8Size != 0u)
+   {
+      switch(p_pu8Arg[0u])
+      {
+         case '1':
+            (void)eBME280_OSRTemperatureSet(BME280_OVERSAMPLING_2X);
+            (void)eBME280_OSRPressureSet(BME280_OVERSAMPLING_16X);
+            (void)eBME280_OSRHumiditySet(BME280_OVERSAMPLING_OFF);
+            break;
+         case '2':
+            (void)eBME280_OSRTemperatureSet(BME280_OVERSAMPLING_1X);
+            (void)eBME280_OSRPressureSet(BME280_OVERSAMPLING_OFF);
+            (void)eBME280_OSRHumiditySet(BME280_OVERSAMPLING_16X);
+            break;
+         default:
+         case '0':
+            (void)eBME280_OSRTemperatureSet(BME280_OVERSAMPLING_1X);
+            (void)eBME280_OSRPressureSet(BME280_OVERSAMPLING_1X);
+            (void)eBME280_OSRHumiditySet(BME280_OVERSAMPLING_1X);
+            break;
+      }
+      
+   }
+   else
+   {
+      eBME280_TPHRead();
+   }
+   PRINT_CUSTOM("RSL,CFG,BME+%s\n","1");
+}
+static void vCfgADX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
+{
+   if(p_u8Size != 0u)
+   {
+      switch(p_pu8Arg[0u])
+      {
+         case '1':
+            (void)eADXL362_MeasureModeSet(ADXL362_MEASURE_STANDBY);
+            (void)eADXL362_WakeUpModeSet(ADXL362_WAKEUP_ON);
+            break;
+         case '2':
+            (void)eADXL362_WakeUpModeSet(ADXL362_WAKEUP_OFF);
+            (void)eADXL362_MeasureModeSet(ADXL362_MEASURE_ON);
+            (void)eADXL362_OutputDataRateSet(ADXL362_ODR_12_5_HZ);
+            eADXL362_NoiseControlSet(ADXL362_NOISE_MODE_NORMAL);
+            break;
+         case '3':
+            (void)eADXL362_WakeUpModeSet(ADXL362_WAKEUP_OFF);
+            (void)eADXL362_MeasureModeSet(ADXL362_MEASURE_ON);
+            (void)eADXL362_OutputDataRateSet(ADXL362_ODR_100_HZ);
+            eADXL362_NoiseControlSet(ADXL362_NOISE_MODE_NORMAL);
+            break;
+         case '4':
+            (void)eADXL362_WakeUpModeSet(ADXL362_WAKEUP_OFF);
+            (void)eADXL362_MeasureModeSet(ADXL362_MEASURE_ON);
+            (void)eADXL362_OutputDataRateSet(ADXL362_ODR_100_HZ);
+            eADXL362_NoiseControlSet(ADXL362_NOISE_MODE_LOW);
+            break;
+         case '5':
+            (void)eADXL362_WakeUpModeSet(ADXL362_WAKEUP_OFF);
+            (void)eADXL362_MeasureModeSet(ADXL362_MEASURE_ON);
+            (void)eADXL362_OutputDataRateSet(ADXL362_ODR_100_HZ);
+            eADXL362_NoiseControlSet(ADXL362_NOISE_MODE_ULTRALOW);
+            break;
+         default:
+         case '0':
+            (void)eADXL362_Init();
+            (void)eADXL362_MeasureModeSet(ADXL362_MEASURE_STANDBY);
+            (void)eADXL362_WakeUpModeSet(ADXL362_WAKEUP_OFF);
+            break;
+      }
+   }
+   else
+   {
+      (void)eADXL362_AccelerationRead();
+   }
+   PRINT_CUSTOM("RSL,CFG,ADX+%s\n","1");
+}
+static void vCfgLIS(uint8_t * p_pu8Arg, uint8_t p_u8Size)
+{
+   if(p_u8Size != 0u)
+   {
+      switch(p_pu8Arg[0u])
+      {
+         case '1':
+            (void)eLIS2MDL_ModeSet(LIS2MDL_MODE_SINGLE_SHOT);  
+            (void)eLIS2MDL_LowPower(1u);   
+            (void)eLIS2MDL_HardIronOffsetEnable(0u);        
+            break;
+         case '2':
+            (void)eLIS2MDL_ModeSet(LIS2MDL_MODE_SINGLE_SHOT);
+            (void)eLIS2MDL_LowPower(1u); 
+            (void)eLIS2MDL_HardIronOffsetEnable(1u);
+            break;
+         case '3':
+            (void)eLIS2MDL_ModeSet(LIS2MDL_MODE_SINGLE_SHOT);
+            (void)eLIS2MDL_LowPower(0u); 
+            (void)eLIS2MDL_HardIronOffsetEnable(0u);
+            break;
+         case '4':
+            (void)eLIS2MDL_ModeSet(LIS2MDL_MODE_SINGLE_SHOT);
+            (void)eLIS2MDL_LowPower(0u);
+            (void)eLIS2MDL_HardIronOffsetEnable(1u);
+            break;
+         default:
+         case '0':
+            (void)eLIS2MDL_LowPower(1u);      
+            (void)eLIS2MDL_OutputDataRateSet(LIS2MDL_ODR_10Hz);
+            (void)eLIS2MDL_ModeSet(LIS2MDL_MODE_IDLE);
+            break;
+      }
+   }
+   else
+   {
+      eLIS2MDL_MagneticRead();
+   }
+   PRINT_CUSTOM("RSL,CFG,LIS+%s\n","1");
+}
+static void vCfgLSM(uint8_t * p_pu8Arg, uint8_t p_u8Size)
+{
+   static uint8_t l_u8GyroEN = 0u;
+   if(p_u8Size != 0u)
+   {
+      switch(p_pu8Arg[0u])
+      {
+         case '1':
+            (void)eLSM6DSL_AccelCfgSet(LSM6DSL_ODR_1_6Hz, LSM6DSL_ACCEL_RANGE_2G, LSM6DSL_MODE_LOW_POWER);
+            (void)eLSM6DSL_GyroCfgSet(LSM6DSL_ODR_POWER_DOWN, LSM6DSL_GYRO_RANGE_250DPS, LSM6DSL_MODE_LOW_POWER);
+            l_u8GyroEN = 0u;
+            break;
+         case '2':
+            (void)eLSM6DSL_AccelCfgSet(LSM6DSL_ODR_52Hz, LSM6DSL_ACCEL_RANGE_2G, LSM6DSL_MODE_LOW_POWER);
+            (void)eLSM6DSL_GyroCfgSet(LSM6DSL_ODR_52Hz, LSM6DSL_GYRO_RANGE_250DPS, LSM6DSL_MODE_LOW_POWER);
+            l_u8GyroEN = 1u;
+            break;
+         default:
+         case '0':
+            (void)eLSM6DSL_AccelCfgSet(LSM6DSL_ODR_POWER_DOWN, LSM6DSL_ACCEL_RANGE_2G, LSM6DSL_MODE_LOW_POWER);
+            (void)eLSM6DSL_GyroCfgSet(LSM6DSL_ODR_POWER_DOWN, LSM6DSL_GYRO_RANGE_250DPS, LSM6DSL_MODE_LOW_POWER); 
+            l_u8GyroEN = 0u;
+            break;
+      }
+   }
+   else
+   {
+      (void)eLSM6DSL_AccelRead();
+      if(l_u8GyroEN != 0u)
+      {
+         (void)eLSM6DSL_GyroRead();
+      }
+   }
+   PRINT_CUSTOM("RSL,CFG,LSM+%s\n","1");
+}
+
+static void vCfgORG(uint8_t * p_pu8Arg, uint8_t p_u8Size)
+{
+   if(p_u8Size != 0u)
+   {
+      switch(p_pu8Arg[0u])
+      {
+         case '0':
+            vORG1510_Constellation(1,0,0,0);
+            break;
+         case '1':
+            vORG1510_Constellation(1,1,1,0);
+            break;
+         default:
+            break;
+      }
+   }      
+}
+
 /****************************************************************************************
  * End Of File
  ****************************************************************************************/

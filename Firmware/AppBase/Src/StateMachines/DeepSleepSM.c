@@ -29,6 +29,7 @@
 
 /* Libraries includes */
 #include "Libraries/Button.h"
+#include "Libraries/Buzzer.h"
 #include "Libraries/SimpleLED.h"
 
 /* BLE include */
@@ -87,6 +88,7 @@ void vDeepSleep_Entry(void)
    /* All registers of µC (ADC/SPI/I2C/UART) */
    vHal_I2C_Uninit();
    vHal_SPI_Uninit();
+   vBuzzerUninit();
    
    /* Shutdown GPS Power */
 
