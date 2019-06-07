@@ -164,7 +164,7 @@ uint8_t g_au8AdvData[ADV_DATA_SIZE_MAX] = { 0u };
 static 
 #endif
 //uint8_t g_au8SrAdvData[ADV_INFO_SIZE] = {BOARD_TYPE, USE_CASE_NUMBER, DATAID_TEMPERATURE, 0u, 0xFA, DATAID_BATTERY_PERCENT, 50u };//{ 0u };
-uint8_t g_au8SrAdvData[ADV_INFO_SIZE] = {BOARD_TYPE, USE_CASE_NUMBER, 0u, 0u, 0u, 0u, 0u };//{ 0u };
+uint8_t g_au8SrAdvData[ADV_INFO_SIZE];// = {BOARD_TYPE, USE_CASE_NUMBER, 0u, 0u, 0u, 0u, 0u };//{ 0u };
 static uint8_t g_u8SizeSrAdvData = 0u;
 //static bool g_bHasToSetAdvertise = false;
 

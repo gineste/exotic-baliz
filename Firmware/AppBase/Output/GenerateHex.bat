@@ -46,6 +46,7 @@ REM --         SD, BL and SD_BL Zip Generation       --
 REM ---------------------------------------------------
 REM Combine the softdevice with the Bootloader
 mergehex --merge Softdevice\s132_nrf52_5.0.0_softdevice.hex  Bootloader\Bootloader.hex --output SD_BL.hex
+COPY SD_BL.hex Hex\SD_Bootloader.hex
 
 REM ---------------------------------------------------
 REM --    Settings for HardwareTest and SF Generation       --

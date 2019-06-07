@@ -113,7 +113,7 @@ static s_StateMachine_t g_sStateMachines[MSM_MAX_NUMBERS] = {
  * @return None
  */
 void vMSM_Init(void)
-{
+{  
    /* Init Timer First */
    vHal_Timer_Init();   
    

@@ -97,6 +97,7 @@ typedef enum _HARDWARE_TEST_CMD_ {
    HT_CMD_RTC,
    HT_CMD_CFG,
    HT_CMD_RAX,
+   HT_CMD_I2C,
    HT_CMD_ISS,
    HT_CMD_RSS,
    HT_CMD_LED,
@@ -121,9 +122,12 @@ static void vStartLEDTest(void);
 static void vStartBuzzerTest(void);
 static void vStartSPITest(void);
 static void vStartADXLTest(void);
+static void vInitI2CTest(void);
+static void vStartI2CSensorInitTest(uint8_t * p_pu8Arg, uint8_t p_u8Size);
 static void vStartI2CSensorsInitTest(void);
 static void vStartI2CSensorsReadTest(void);
-static void vStartI2CSensorsReadCustom(uint8_t * p_pu8Arg, uint8_t p_u8Size);
+static void vStartSensorReadTest(uint8_t * p_pu8Arg, uint8_t p_u8Size);
+//static void vStartI2CSensorsReadCustom(uint8_t * p_pu8Arg, uint8_t p_u8Size);
 static void vStartGPSTest(void);
 static void vStopGPSTest(void);
 static void vStartSigFoxInitTest(void);
@@ -178,24 +182,24 @@ static void vCfgORG(uint8_t * p_pu8Arg, uint8_t p_u8Size);
       .fp_vDelay_ms = &vHal_Timer_DelayMs,         /* Function pointer to a timer in ms */
       
       .eRange = ADXL362_RANGE_2G,                  /* Range of accelerometer */
-      .eOutputDataRate = ADXL362_ODR_400_HZ,       /* Output Data Rate */
+      .eOutputDataRate = ADXL362_ODR_12_5_HZ,       /* Output Data Rate */
       .eLinkLoopMode = ADXL362_MODE_LOOP,          /* Functioning mode (Link/Loop) */
       .eNoiseCtrl = ADXL362_NOISE_MODE_NORMAL,     /* Noise control (Normal, Low, Ultra Low) */
       
       .u8ActivityDetection = 1u,			/* 0 - no activity detection, 1 - activity detection */
       .u8RefOrAbsActivity = 1u, 			/* 0 - absolute mode, 1 - referenced mode. */
-      .u16ThresholdActivity = 0x280,   /* 11-bit unsigned value that the adxl362 samples are compared to. */
+      .u16ThresholdActivity = 250,   /* 11-bit unsigned value that the adxl362 samples are compared to. */
       .u16TimeActivity = 250u,			/* 16-bit value activity time in ms (from 2.5ms @ odr = 400Hz to 20s @ odr = 12.5Hz) */
       
       .u8InactivityDetection = 1u,		/* 0 - no activity detection, 1 - activity detection */
       .u8RefOrAbsInactivity = 1u,		/* 0 - absolute mode, 1 - referenced mode. */
-      .u16ThresholdInactivity = 0x3FF, /* 11-bit unsigned value that the ADXL362 samples are compared to. */
+      .u16ThresholdInactivity = 400, /* 11-bit unsigned value that the ADXL362 samples are compared to. */
       .u32TimeInactivity = 1000u,  		/* 16-bit value inactivity time in ms (from 164s @ odr = 400Hz to 87min @ odr = 12.5Hz) */
                                         
       .eInt1Map = ADXL362_INTMAPX_OFF,  /* Type of the interrupt n°1 */
       .eInt2Map = ADXL362_INTMAPX_AWAKE,    /* Type of the interrupt n°2 */
-      .u32Int1Pin = 0xFF, 
-      .u32Int2Pin = ADXL_INT2,
+//      .u32Int1Pin = 0xFF, 
+//      .u32Int2Pin = ADXL_INT2,
       .eWakeUpMode = ADXL362_WAKEUP_OFF,  /* Wake-up mode (Let it OFF if you adjustable ODR for (In)Activity detection) */
       .eMeasureMode = ADXL362_MEASURE_ON  /* Power mode (Standby or Measurement Mode) */
    };
@@ -275,6 +279,14 @@ static s_ST25DV_Context_t g_sST25DVContext = {
 #endif
    
 #endif
+static uint8_t g_u8SPIInit = 0u;
+static uint8_t g_u8I2CInit = 0u;
+static uint8_t g_u8BMEInit = 0u;
+static uint8_t g_u8MAXInit = 0u;
+static uint8_t g_u8LISInit = 0u;
+static uint8_t g_u8LSMInit = 0u;
+static uint8_t g_u8LTCInit = 0u;
+static uint8_t g_u8ADXInit = 0u;
    
 static uint8_t g_u8StopTest = 0u;
 static uint8_t g_u8TestInProgress = 0u;
@@ -306,6 +318,7 @@ const char g_cachCmd[HT_CMD_LAST][CMD_FRAME_SIZE+1u] = {
    "RTC\0",
    "CFG\0",
    "RAX\0",
+   "I2C\0",
    "ISS\0",
    "RSS\0",
    "LED\0",
@@ -340,6 +353,7 @@ void vHT_PrintHelp(void)
    PRINT_FAST("CFG: Configure Sensors\n");
    PRINT_FAST("SPI: Check SPI ADXL362\n");
    PRINT_FAST("RAX: Read SPI ADXL362\n");
+   PRINT_FAST("I2C: Init I2C Layer\n");
    PRINT_FAST("ISS: Init All I2C Sensors\n");
    PRINT_FAST("RSS: Read All I2C Sensors\n");   
    PRINT_FAST("LED: Check LED (Visual)\n");
@@ -385,6 +399,9 @@ void vHT_CheckInput(uint8_t * p_au8Frame, uint8_t p_u8Size)
          {  /* Cmd not valid */
          }
       }
+      else
+      {  /* Cmd not valid */
+      }
    }
 }
 
@@ -400,10 +417,10 @@ void vHT_BackgroundProcess(void)
          #if (EN_MAX44009 == 1)  
          #endif
          
-         #if (EN_LSM6DSL == 1)
-            (void)eLSM6DSL_AccelRead();
-            (void)eLSM6DSL_GyroRead();
-         #endif
+//         #if (EN_LSM6DSL == 1)
+//            (void)eLSM6DSL_AccelRead();
+//            (void)eLSM6DSL_GyroRead();
+//         #endif
          
          #if (EN_LIS2MDL == 1)
             (void)eLIS2MDL_MagneticRead();
@@ -486,22 +503,31 @@ static void vHT_NewTestProcess(e_HT_Commands_t p_eCmd, uint8_t * p_au8Arg, uint8
          PRINT_FAST("$ACK,RAX+1\n");
          vStartADXLTest();
          break;
+      case HT_CMD_I2C:
+         PRINT_FAST("$ACK,I2C+1\n");
+         vInitI2CTest();
+         break;
       case HT_CMD_ISS:
-         PRINT_FAST("$ACK,ISS+1\n");
          if(p_u8Size == 0u)
          {
+            PRINT_FAST("$ACK,ISS+1\n");
             vStartI2CSensorsInitTest();
+         }
+         else
+         {
+            vStartI2CSensorInitTest(p_au8Arg, p_u8Size);
          }
          break;
       case HT_CMD_RSS:
-         PRINT_FAST("$ACK,RSS+1\n");
          if(p_u8Size == 0u)
          {
+            PRINT_FAST("$ACK,RSS+1\n");
             vStartI2CSensorsReadTest();
          }
          else
          {
-            vStartI2CSensorsReadCustom(p_au8Arg,p_u8Size);
+            vStartSensorReadTest(p_au8Arg, p_u8Size);
+            //vStartI2CSensorsReadCustom(p_au8Arg,p_u8Size);
          }
          break;
       case HT_CMD_LED:
@@ -555,7 +581,7 @@ static void vStartMACGet(void)
    uint8_t l_u8Size = 0u;
    vBLE_MACAddressGet(l_au8Data, &l_u8Size);
    PRINT_CUSTOM("$RSL,MAC+1,%02X:%02X:%02X:%02X:%02X:%02X\n",  
-         l_au8Data[0u],l_au8Data[1u],l_au8Data[2u],l_au8Data[3u],l_au8Data[4u],l_au8Data[5u]);   
+         l_au8Data[5u],l_au8Data[4u],l_au8Data[3u],l_au8Data[2u],l_au8Data[1u],l_au8Data[0u]);   
 }
 static void vStartLEDTest(void)
 {
@@ -578,11 +604,9 @@ static void vStartBuzzerTest(void)
 
 
 static void vStartSPITest(void)
-{
-   uint8_t l_u8PartID = 0u;
-   
+{   
    vHal_GPIO_Set(ADXL_POWER_EN);
-   nrf_delay_ms(10u);
+   vHal_Timer_DelayMs(10u);
    /* Since it's the first process we run, there is no entry point for PowerUp SM */
    /* Module : SPI, I2C, etc. */
    vHal_I2C_Init();
@@ -596,26 +620,10 @@ static void vStartSPITest(void)
    };
    
    vHal_SPI_ContextSet(l_sSPIContext);
-   vHal_SPI_Init();
-  
-   if(eADXL362_ContextSet(g_sADXLContext) == ADXL362_ERROR_NONE)
-   {
-      if(eADXL362_SoftReset() != ADXL362_ERROR_NONE)
-      {
-         PRINT_FAST("$RSL,SPI+0\n");
-      }
-      vHal_Timer_DelayMs(1u);
+   vHal_SPI_Init();  
+   PRINT_FAST("$RSL,SPI+1\n");
 
-      if(eADXL362_PartIDGet(&l_u8PartID) != ADXL362_ERROR_NONE)
-      {
-         PRINT_FAST("$RSL,SPI+0\n");
-      }
-      else
-      {
-         PRINT_FAST("$RSL,SPI+1\n");
-      }
-   }
-   
+   g_u8SPIInit = 1u;
 }
 static void vStartADXLTest(void)
 {
@@ -649,6 +657,20 @@ static void vStartADXLTest(void)
 #endif
 }
 
+static void vInitI2CTest(void)
+{
+   s_HalI2C_Context_t l_sI2CContext = {
+      .u32SCLPin = I2C_SCL,
+      .u32SDAPin = I2C_SDA,
+      .eFrequency = HALI2C_FREQ_400K,
+      .u8EnablePullUp = 1u,
+   };
+   vHal_I2C_ContextSet(l_sI2CContext);
+   vHal_I2C_Init();
+   g_u8I2CInit = 1u;
+   PRINT_FAST("$RSL,I2C+1\n");
+}
+
 static void vStartI2CSensorsInitTest(void)
 {   
    uint8_t l_u8ChipID = 0u;
@@ -663,6 +685,7 @@ static void vStartI2CSensorsInitTest(void)
    
    vHal_I2C_ContextSet(l_sI2CContext);
    vHal_I2C_Init();
+   g_u8I2CInit = 1u;
    
 #if (EN_BME280 == 1) 
    if(eBME280_ContextSet(g_sBMEContext) == BME280_ERROR_NONE)
@@ -799,6 +822,185 @@ static void vStartI2CSensorsInitTest(void)
    PRINT_FAST("$RSL,ISS+1\n");
    g_u8I2CInitSensors = 1u;
 }
+
+static void vStartI2CSensorInitTest(uint8_t * p_pu8Arg, uint8_t p_u8Size)
+{
+   uint8_t l_u8Error = 1u;
+   uint8_t l_u8ChipID = 0u;   
+   
+   if(p_u8Size >= 4u)
+   {
+      if(   (g_u8SPIInit == 1)
+         && (strstr((char*)p_pu8Arg, "ADX") != NULL) )
+      {
+         l_u8Error = 1u;
+         PRINT_FAST("$ACK,ISS,ADX+1\n");
+         #if (EN_ADXL362 == 1)
+            if(eADXL362_ContextSet(g_sADXLContext) == ADXL362_ERROR_NONE)
+            {
+               if(eADXL362_SoftReset() == ADXL362_ERROR_NONE)
+               {
+                  vHal_Timer_DelayMs(1u);
+                  if(eADXL362_PartIDGet(&l_u8ChipID) == ADXL362_ERROR_NONE)
+                  {
+                     l_u8Error = 0u;
+                  }
+               }            
+            }
+         
+            if(l_u8Error == 0u)
+            {
+               g_u8ADXInit = 1u;
+               PRINT_FAST("$RSL,ISS,ADX+1\n");
+            }
+            else
+         #endif
+            {
+               PRINT_FAST("$RSL,ISS,ADX+0\n");
+            }
+      }
+      else if(g_u8I2CInit == 1u)
+      {
+         if(strstr((char*)p_pu8Arg, "BME") != NULL)
+         {
+            PRINT_FAST("$ACK,ISS,BME+1\n");
+         #if (EN_BME280 == 1) 
+            l_u8Error = 1u;
+            if(eBME280_ContextSet(g_sBMEContext) == BME280_ERROR_NONE)
+            {
+               if(eBME280_ChipIDGet(&l_u8ChipID) == BME280_ERROR_NONE)
+               {
+                  l_u8Error = (l_u8ChipID == BME280_CHIP_ID)? 0u : 1u;
+               }
+            }
+            
+            if(l_u8Error == 0u)
+            {
+               g_u8BMEInit = 1u;
+               PRINT_FAST("$RSL,ISS,BME+1\n");
+            }
+            else
+         #endif
+            {
+               PRINT_FAST("$RSL,ISS,BME+0\n");
+            }
+         }
+         else if(strstr((char*)p_pu8Arg, "MAX") != NULL)
+         {
+            PRINT_FAST("$ACK,ISS,MAX+1\n");
+         #if (EN_MAX44009 == 1)  
+            l_u8Error = 1u;
+            // NOTE : No part ID available for MAX44009 just try to write something on it
+            if(eMAX44009_ContextSet(g_sMAXContext) == MAX44009_ERROR_NONE)
+            { 
+               if(eMAX44009_ConversionModeSet(MAX44009_DEFAULT,MAX44009_AUTOMATIC, 
+                                             MAX44009_INT_TIME_800MS,MAX44009_HIGH_BRIGHTNESS) == MAX44009_ERROR_NONE)
+               {
+                  l_u8Error = 0u;
+               }
+            }
+            
+            if(l_u8Error == 0u)
+            {
+               g_u8MAXInit = 1u;
+               PRINT_FAST("$RSL,ISS,MAX+1\n");
+            }
+            else
+         #endif
+            {
+               PRINT_FAST("$RSL,ISS,MAX+0\n");
+            }
+         }
+         else if(strstr((char*)p_pu8Arg, "LIS") != NULL)
+         {
+            PRINT_FAST("$ACK,ISS,LIS+1\n");
+         #if (EN_LIS2MDL == 1)
+            l_u8Error = 1u;
+            l_u8ChipID = 0u;
+            if(eLIS2MDL_ContextSet(g_sLIS2Context) == LIS2MDL_ERROR_NONE)
+            {
+               if(eLIS2MDL_WhoAmIGet(&l_u8ChipID) == LIS2MDL_ERROR_NONE)
+               {
+                  l_u8Error = (l_u8ChipID == LIS2MDL_WHO_AM_I_ID)? 0u : 1u;
+               }
+            }
+            
+            if(l_u8Error == 0u)
+            {
+               g_u8LISInit = 1u;
+               PRINT_FAST("$RSL,ISS,LIS+1\n");
+            }
+            else
+         #endif
+            {
+               PRINT_FAST("$RSL,ISS,LIS+0\n");
+            }
+         }
+         else if(strstr((char*)p_pu8Arg, "LSM") != NULL)
+         {
+            PRINT_FAST("$ACK,ISS,LSM+1\n");
+         #if (EN_LSM6DSL == 1)
+            l_u8Error = 1u;
+            l_u8ChipID = 0u;
+            if(eLSM6DSL_ContextSet(g_sLSM6Context) == LSM6DSL_ERROR_NONE)
+            {
+               if(eLSM6DSL_WhoAmIGet(&l_u8ChipID) == LSM6DSL_ERROR_NONE)
+               {
+                  l_u8Error = (l_u8ChipID == LSM6DSL_WHO_I_AM_ID)? 0u : 1u;                  
+               }
+            }
+            
+            if(l_u8Error == 0u)
+            {
+               g_u8LSMInit = 1u;
+               PRINT_FAST("$RSL,ISS,LSM+1\n");
+            }
+            else
+         #endif
+            {
+               PRINT_FAST("$RSL,ISS,LSM+0\n");
+            }
+         }
+         else if(strstr((char*)p_pu8Arg, "LTC") != NULL)
+         {         
+            PRINT_FAST("$ACK,ISS,LTC+1\n");
+         #if (EN_LTC2943 == 1)
+            l_u8Error = 1u;
+            if(eLTC2943_ContextSet(g_sLTCContext) == LTC2943_ERROR_NONE)
+            {
+               if(eLTC2943_StatusGet(&l_u8ChipID) == LTC2943_ERROR_NONE)
+               {
+                  l_u8Error = 0u;
+               }
+            }
+            
+            if(l_u8Error == 0u)
+            {
+               g_u8LTCInit = 1u;
+               PRINT_FAST("$RSL,ISS,LTC+1\n");
+            }
+            else
+         #endif
+            {
+               PRINT_FAST("$RSL,ISS,LTC+0\n");
+            }
+         }
+         else
+         {
+            PRINT_FAST("$ACK,ISS+0\n");
+         }
+      }
+      else
+      {
+         PRINT_FAST("$ACK,ISS+0\n");
+      }
+   }
+   else
+   {
+      PRINT_FAST("$ACK,ISS+0\n");
+   }
+}
+
 static void vStartI2CSensorsReadTest(void)
 {
    uint8_t l_u8Error = 1u;
@@ -1021,58 +1223,261 @@ static void vStartI2CSensorsReadTest(void)
       PRINT_FAST("$RSL,RSS+0\n");
       return;
    }  
-   
 }
 
-static void vStartI2CSensorsReadCustom(uint8_t * p_pu8Arg, uint8_t p_u8Size)
+static void vStartSensorReadTest(uint8_t * p_pu8Arg, uint8_t p_u8Size)
 {
+   uint8_t l_u8Error = 1u;
+   int16_t l_s16X = 0;
+   int16_t l_s16Y = 0;
+   int16_t l_s16Z = 0;
+   char l_achData[40] = { 0 };
+   char l_achDataResult[256] = { 0u };
+   
    if(p_u8Size >= 4u)
    {
       if(strstr((char*)p_pu8Arg, "BME") != NULL)
       {
-         if(strstr((char*)p_pu8Arg, "CU") != NULL)
+         PRINT_FAST("$ACK,RSS,BME+1\n");
+         l_u8Error = 1u;
+         if(g_u8BMEInit == 1u)
          {
-            (void)eBME280_OSRTemperatureSet(BME280_OVERSAMPLING_2X);
-            (void)eBME280_OSRPressureSet(BME280_OVERSAMPLING_16X);
+         #if (EN_BME280 == 1)
+            float l_fT;
+            float l_fP;
+            float l_fH;
+            l_u8Error = u8BME_SingleShotRead(&l_fT, &l_fP, &l_fH);
+            if(l_u8Error == 0)
+            {
+               strcat(l_achDataResult, "$RSL,RSS,BME+1");
+               sprintf(l_achData, ",%.2f", l_fT);
+               strcat(l_achDataResult, l_achData);    
+               sprintf(l_achData, ",%.2f", l_fP);
+               strcat(l_achDataResult, l_achData);         
+               sprintf(l_achData, ",%.2f", l_fH);
+               strcat(l_achDataResult, l_achData); 
+               PRINT_CUSTOM("%s\n",l_achDataResult); 
+            }
+            else
+         #endif
+            {
+               PRINT_FAST("$RSL,RSS,BME+0\n");
+            }
          }
          else
          {
-            (void)eBME280_OSRTemperatureSet(BME280_OVERSAMPLING_1X);
-            (void)eBME280_OSRPressureSet(BME280_OVERSAMPLING_1X);
-         }         
-
-         if(eBME280_TPHRead() == BME280_ERROR_NONE)
+            PRINT_FAST("$RSL,RSS,BME+0,ISS\n");
+         }
+      }
+      else if(strstr((char*)p_pu8Arg, "MAX") != NULL)
+      {
+         PRINT_FAST("$ACK,RSS,MAX+1\n");
+         l_u8Error = 1u;
+         if(g_u8MAXInit == 1u)
          {
+         #if (EN_MAX44009 == 1)        
+            uint32_t l_u32Brightness = 0u;
+            if(eMAX44009_BrightnessRead(NULL) == MAX44009_ERROR_NONE)
+            {
+               if(eMAX44009_BrightnessGet(&l_u32Brightness) == MAX44009_ERROR_NONE)
+               {
+                  l_u8Error = 0u;
+               }            
+            }            
             
+            if(l_u8Error == 0u)
+            {
+               strcat(l_achDataResult, "$RSL,RSS,MAX+1");
+               sprintf(l_achData, ",%d", l_u32Brightness);
+               strcat(l_achDataResult, l_achData);
+               PRINT_CUSTOM("%s\n",l_achDataResult);
+            }
+            else
+         #endif
+            {
+               PRINT_FAST("$RSL,RSS,MAX+0\n");
+            }
+         }
+         else
+         {
+            PRINT_FAST("$RSL,RSS,MAX+0,ISS\n");
+         }
+      }
+      else if(strstr((char*)p_pu8Arg, "LIS") != NULL)
+      {
+         PRINT_FAST("$ACK,RSS,LIS+1\n");
+         l_u8Error = 1u;
+         if(g_u8LISInit == 1u)
+         {
+         #if (EN_LIS2MDL == 1)
+               
+            (void)eLIS2MDL_LowPower(1u);
+            (void)eLIS2MDL_BlockDataUpdateSet(1u);
+            (void)eLIS2MDL_OutputDataRateSet(LIS2MDL_ODR_100Hz);
+            (void)eLIS2MDL_ModeSet(LIS2MDL_MODE_SINGLE_SHOT);
+            vHal_Timer_DelayMs(100u);
+            if(eLIS2MDL_MagneticRead() == LIS2MDL_ERROR_NONE)
+            {
+               if(eLIS2MDL_MagDataGet(&l_s16X, &l_s16Y, &l_s16Z) == LIS2MDL_ERROR_NONE)
+               {
+                  l_u8Error = 0u;
+                  strcat(l_achDataResult, "$RSL,RSS,LIS+1");
+                  sprintf(l_achData, ",%d,%d,%d", l_s16X,l_s16Y,l_s16Z);
+                  strcat(l_achDataResult, l_achData);
+               }
+            }
+            
+            if(l_u8Error == 0u)
+            {
+               (void)eLIS2MDL_OutputDataRateSet(LIS2MDL_ODR_10Hz);
+               PRINT_CUSTOM("%s\n",l_achDataResult);
+            }
+            else
+         #endif
+            {
+               PRINT_FAST("$RSL,RSS,LIS+0\n");
+            }
+         }
+         else
+         {
+            PRINT_FAST("$RSL,RSS,LIS+0,ISS\n");
+         }
+      }
+      else if(strstr((char*)p_pu8Arg, "LSM") != NULL)
+      {
+         PRINT_FAST("$ACK,RSS,LSM+1\n");
+         l_u8Error = 1u;
+         if(g_u8LSMInit == 1u)
+         {
+      #if (EN_LSM6DSL == 1)
+            (void)eLSM6DSL_BlockDataUpdateSet(1u);
+            (void)eLSM6DSL_AccelCfgSet(LSM6DSL_ODR_6_66kHz, LSM6DSL_ACCEL_RANGE_2G, LSM6DSL_MODE_LOW_POWER);
+            (void)eLSM6DSL_GyroCfgSet(LSM6DSL_ODR_6_66kHz, LSM6DSL_GYRO_RANGE_250DPS, LSM6DSL_MODE_LOW_POWER);
+            vHal_Timer_DelayMs(100u);
+            if(   (eLSM6DSL_GyroRead() == LSM6DSL_ERROR_NONE)
+               && (eLSM6DSL_AccelRead() == LSM6DSL_ERROR_NONE) )
+            {
+               l_u8Error = 0u;
+               strcat(l_achDataResult, "$RSL,RSS,LSM+1");
+               if(eLSM6DSL_AccelGet(&l_s16X, &l_s16Y, &l_s16Z) == LSM6DSL_ERROR_NONE)
+               {
+                  sprintf(l_achData, ",%d,%d,%d", l_s16X,l_s16Y,l_s16Z);
+                  strcat(l_achDataResult, l_achData);
+               }
+               if(eLSM6DSL_GyroGet(&l_s16X, &l_s16Y, &l_s16Z) == LSM6DSL_ERROR_NONE)
+               {
+                  sprintf(l_achData, ",%d,%d,%d", l_s16X,l_s16Y,l_s16Z);
+                  strcat(l_achDataResult, l_achData);
+               }
+            }
+            
+            if(l_u8Error == 0u)
+            {
+               (void)eLSM6DSL_AccelCfgSet(LSM6DSL_ODR_POWER_DOWN, LSM6DSL_ACCEL_RANGE_2G, LSM6DSL_MODE_LOW_POWER);
+               (void)eLSM6DSL_GyroCfgSet(LSM6DSL_ODR_POWER_DOWN, LSM6DSL_GYRO_RANGE_250DPS, LSM6DSL_MODE_LOW_POWER);
+               PRINT_CUSTOM("%s\n",l_achDataResult);
+            }
+            else
+      #endif
+            {
+               PRINT_FAST("$RSL,RSS,LSM+0\n");
+            }
+         }
+         else
+         {
+            PRINT_FAST("$RSL,RSS,LSM+0,ISS\n");
+         }
+      }
+      else if(strstr((char*)p_pu8Arg, "LTC") != NULL)
+      {
+         PRINT_FAST("$ACK,ISS,LTC+1\n");
+         l_u8Error = 1u;
+         if(g_u8LTCInit == 1u)
+         {
+      #if (EN_LTC2943 == 1)
+            uint16_t l_u16Volt = 0u;
+            int16_t l_s16Curr = 0u;
+         
+            eLTC2943_PowerDown(0u);
+            if(eLTC2943_ADCModeSet(LTC2943_ADC_MODE_MANUAL) == LTC2943_ERROR_NONE)
+            {
+               if(eLTC2943_SensorRead(ADC_SENSOR_VOLTAGE_MASK | ADC_SENSOR_CURRENT_MASK) == LTC2943_ERROR_NONE)
+               {
+                  if(   (eLTC2943_VoltageGet(&l_u16Volt) == LTC2943_ERROR_NONE)
+                     && (eLTC2943_AccumulatedChargeGet(&l_s16Curr) == LTC2943_ERROR_NONE) )
+                  {
+                     l_u8Error = 0u;
+                     strcat(l_achDataResult, "$RSL,RSS,LSM+1");
+                     sprintf(l_achData, ",%d,%d", l_u16Volt,l_s16Curr);
+                     strcat(l_achDataResult, l_achData);
+                  }
+               }
+            }
+            
+            if(l_u8Error == 0u)
+            {
+               PRINT_CUSTOM("%s\n",l_achDataResult);
+            }
+            else
+      #endif
+            {
+               PRINT_FAST("$RSL,RSS,LTC+0\n");
+            }
+         }
+         else
+         {
+            PRINT_FAST("$RSL,RSS,LTC+0,ISS\n");
          }
       }
       else if(strstr((char*)p_pu8Arg, "ADX") != NULL)
       {
-         __nop();
-      }
-      else if(strstr((char*)p_pu8Arg, "LIS") != NULL)
-      {
-         __nop();
-      }
-      else if(strstr((char*)p_pu8Arg, "LSM") != NULL)
-      {
-         __nop();
-      }
-      else if(strstr((char*)p_pu8Arg, "MAX") != NULL)
-      {
-         __nop();
+         PRINT_FAST("$ACK,RSS,ADX+1\n");
+         l_u8Error = 1u;
+         if(g_u8ADXInit == 1u)
+         {
+         #if (EN_ADXL362 == 1)    
+            if(u8ADXL362_IsAvailable() == 0u)
+            {
+               if(eADXL362_Init() != ADXL362_ERROR_NONE)
+               {
+                  PRINT_FAST("$RSL,RAX+0\n");
+               }
+            }
+            vHal_Timer_DelayMs(200u);            
+            if(u8ADXL362_IsAvailable() == 1u)
+            {
+               if(eADXL362_AccelerationRead() == ADXL362_ERROR_NONE)
+               {
+                  vADXL362_AccelerationGet(&l_s16X,&l_s16Y,&l_s16Z);
+                  strcat(l_achDataResult, "$RSL,RSS,ADX+1");
+                  sprintf(l_achData, ",%d,%d,%d", l_s16X,l_s16Y,l_s16Z);
+                  strcat(l_achDataResult, l_achData);
+                  l_u8Error = 0u;
+               }
+            }
+            
+            if(l_u8Error == 0u)
+            {
+               PRINT_CUSTOM("%s\n",l_achDataResult);
+            }
+            else
+         #endif
+            {
+               PRINT_FAST("$RSL,RSS,ADX+0\n");
+            }
+         }
+         else
+         {
+            PRINT_FAST("$RSL,RSS,ADX+0,ISS\n");
+         }
       }
       else
       {
-         __nop();
+         PRINT_FAST("$ACK,RSS+0\n");
       }
    }
-   else
-   {
-      
-   }
-      
 }
+
 
 static void vStartGPSTest(void)
 {   
@@ -1130,7 +1535,7 @@ static void vStartSigFoxInitTest(void)
                   memset(l_achData, 0u, 40);// ex 9D3B7E11D7333FB7
                   vAXSigFox_DevicePacGet(l_au8Info, &l_u8Size);
                   l_au8Info[l_u8Size-1] = 0u;
-                  sprintf(l_achData, ",PAC=%s",l_au8Info);
+                  sprintf(l_achData, ",%s",l_au8Info);
                   strcat(l_achDataResult, l_achData);
                   l_eIdxState = SM_SIGFOX_DEVICE_ID;
                   /* for next use */
@@ -1151,7 +1556,7 @@ static void vStartSigFoxInitTest(void)
                   vAXSigFox_DeviceIdGet(l_au8Info, &l_u8Size);
                   memset(l_achData, 0u, 40); // ex 0030D1A1 
                   l_au8Info[l_u8Size-1] = 0u;
-                  sprintf(l_achData, ",ID=%s", l_au8Info);
+                  sprintf(l_achData, ",%s", l_au8Info);
                   strcat(l_achDataResult, l_achData);
                   l_eIdxState = SM_SIGFOX_IDLE_WAIT;
                   /* for next use */
@@ -1254,7 +1659,7 @@ static void vStopSigFoxCWTest(void)
       
       }while(u8AT_PendingCommand() == 1u);
       g_u8SigFoxCWTest = 0u;
-      PRINT_FAST("$RSL,SFC+2\n");
+      PRINT_FAST("$RSL,SFC+1\n");
    }
 }
 
@@ -1328,6 +1733,7 @@ static void vStopRadioBLETest(void)
    {
 //      PRINT_FAST("$RSL,BLE+2\n");
    }
+      PRINT_FAST("$RSL,BLE+1\n");      
 }
 
 
@@ -1887,25 +2293,25 @@ static void vCfgSensor(uint8_t * p_pu8Arg, uint8_t p_u8Size)
       {
          if(strstr((char*)p_pu8Arg, "BME") != NULL)
          {
-            PRINT_CUSTOM("ACK,CFG+%s\n","1");
+            PRINT_CUSTOM("$ACK,CFG+%s\n","1");
             l_u8Len = strlen((char*)&p_pu8Arg[4u]);
             vCfgBME(&p_pu8Arg[4u], l_u8Len);
          }
          else if(strstr((char*)p_pu8Arg, "ADX") != NULL)
          {
-            PRINT_CUSTOM("ACK,CFG+%s\n","1");
+            PRINT_CUSTOM("$ACK,CFG+%s\n","1");
             l_u8Len = strlen((char*)&p_pu8Arg[4u]);
             vCfgADX(&p_pu8Arg[4u], l_u8Len);
          }
          else if(strstr((char*)p_pu8Arg, "LIS") != NULL)
          {
-            PRINT_CUSTOM("ACK,CFG+%s\n","1");
+            PRINT_CUSTOM("$ACK,CFG+%s\n","1");
             l_u8Len = strlen((char*)&p_pu8Arg[4u]);
             vCfgLIS(&p_pu8Arg[4u], l_u8Len);
          }
          else if(strstr((char*)p_pu8Arg, "LSM") != NULL)
          {
-            PRINT_CUSTOM("ACK,CFG+%s\n","1");
+            PRINT_CUSTOM("$ACK,CFG+%s\n","1");
             l_u8Len = strlen((char*)&p_pu8Arg[4u]);
             vCfgLSM(&p_pu8Arg[4u], l_u8Len);
          }
@@ -1913,18 +2319,18 @@ static void vCfgSensor(uint8_t * p_pu8Arg, uint8_t p_u8Size)
          {
             if(g_u8TestInProgress == 1u)
             {
-               PRINT_CUSTOM("ACK,CFG+%s\n","1");
+               PRINT_CUSTOM("$ACK,CFG+%s\n","1");
                l_u8Len = strlen((char*)&p_pu8Arg[4u]);
                vCfgORG(&p_pu8Arg[4u], l_u8Len);
             }
             else
             {
-               PRINT_CUSTOM("ACK,CFG+%s\n","0");
+               PRINT_CUSTOM("$ACK,CFG+%s\n","0");
             }
          }
          else
          {
-            PRINT_CUSTOM("ACK,CFG+%s\n","0");
+            PRINT_CUSTOM("$ACK,CFG+%s\n","0");
          }
       }
    }
@@ -1932,32 +2338,32 @@ static void vCfgSensor(uint8_t * p_pu8Arg, uint8_t p_u8Size)
    {
       if(strstr((char*)p_pu8Arg, "BME") != NULL)
       {
-         PRINT_CUSTOM("ACK,CFG+%s\n","1");
+         PRINT_CUSTOM("$ACK,CFG+%s\n","1");
          vCfgBME(NULL, 0u);
       }
       else if(strstr((char*)p_pu8Arg, "ADX") != NULL)
       {
-         PRINT_CUSTOM("ACK,CFG+%s\n","1");
+         PRINT_CUSTOM("$ACK,CFG+%s\n","1");
          vCfgADX(NULL, 0u);
       }
       else if(strstr((char*)p_pu8Arg, "LIS") != NULL)
       {
-         PRINT_CUSTOM("ACK,CFG+%s\n","1");
+         PRINT_CUSTOM("$ACK,CFG+%s\n","1");
          vCfgLIS(NULL, 0u);
       }
       else if(strstr((char*)p_pu8Arg, "LSM") != NULL)
       {
-         PRINT_CUSTOM("ACK,CFG+%s\n","1");
+         PRINT_CUSTOM("$ACK,CFG+%s\n","1");
          vCfgLSM(NULL, 0u);
       }
       else
       {
-         PRINT_CUSTOM("ACK,CFG+%s\n","0");
+         PRINT_CUSTOM("$ACK,CFG+%s\n","0");
       }
    }
    else
    {
-      PRINT_CUSTOM("ACK,CFG+%s\n","0");
+      PRINT_CUSTOM("$ACK,CFG+%s\n","0");
    }
 }
 
@@ -1971,17 +2377,20 @@ static void vCfgBME(uint8_t * p_pu8Arg, uint8_t p_u8Size)
             (void)eBME280_OSRTemperatureSet(BME280_OVERSAMPLING_2X);
             (void)eBME280_OSRPressureSet(BME280_OVERSAMPLING_16X);
             (void)eBME280_OSRHumiditySet(BME280_OVERSAMPLING_OFF);
+            (void)eBME280_ModeSet(BME280_FORCED);
             break;
          case '2':
             (void)eBME280_OSRTemperatureSet(BME280_OVERSAMPLING_1X);
             (void)eBME280_OSRPressureSet(BME280_OVERSAMPLING_OFF);
             (void)eBME280_OSRHumiditySet(BME280_OVERSAMPLING_16X);
+            (void)eBME280_ModeSet(BME280_FORCED);
             break;
          default:
          case '0':
             (void)eBME280_OSRTemperatureSet(BME280_OVERSAMPLING_1X);
             (void)eBME280_OSRPressureSet(BME280_OVERSAMPLING_1X);
             (void)eBME280_OSRHumiditySet(BME280_OVERSAMPLING_1X);
+            (void)eBME280_ModeSet(BME280_FORCED);
             break;
       }
       
@@ -1990,7 +2399,7 @@ static void vCfgBME(uint8_t * p_pu8Arg, uint8_t p_u8Size)
    {
       eBME280_TPHRead();
    }
-   PRINT_CUSTOM("RSL,CFG,BME+%s\n","1");
+   PRINT_CUSTOM("$RSL,CFG,BME,%c+%s\n",(char)p_pu8Arg[0u],"1");
 }
 static void vCfgADX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
 {
@@ -1999,32 +2408,50 @@ static void vCfgADX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
       switch(p_pu8Arg[0u])
       {
          case '1':
-            (void)eADXL362_MeasureModeSet(ADXL362_MEASURE_STANDBY);
+            (void)eADXL362_MeasureModeSet(ADXL362_MEASURE_ON);
             (void)eADXL362_WakeUpModeSet(ADXL362_WAKEUP_ON);
             break;
          case '2':
             (void)eADXL362_WakeUpModeSet(ADXL362_WAKEUP_OFF);
             (void)eADXL362_MeasureModeSet(ADXL362_MEASURE_ON);
             (void)eADXL362_OutputDataRateSet(ADXL362_ODR_12_5_HZ);
-            eADXL362_NoiseControlSet(ADXL362_NOISE_MODE_NORMAL);
+            eADXL362_NoiseModeSet(ADXL362_NOISE_MODE_NORMAL);
             break;
          case '3':
             (void)eADXL362_WakeUpModeSet(ADXL362_WAKEUP_OFF);
             (void)eADXL362_MeasureModeSet(ADXL362_MEASURE_ON);
             (void)eADXL362_OutputDataRateSet(ADXL362_ODR_100_HZ);
-            eADXL362_NoiseControlSet(ADXL362_NOISE_MODE_NORMAL);
+            eADXL362_NoiseModeSet(ADXL362_NOISE_MODE_NORMAL);
             break;
          case '4':
             (void)eADXL362_WakeUpModeSet(ADXL362_WAKEUP_OFF);
             (void)eADXL362_MeasureModeSet(ADXL362_MEASURE_ON);
             (void)eADXL362_OutputDataRateSet(ADXL362_ODR_100_HZ);
-            eADXL362_NoiseControlSet(ADXL362_NOISE_MODE_LOW);
+            eADXL362_NoiseModeSet(ADXL362_NOISE_MODE_LOW);
             break;
          case '5':
             (void)eADXL362_WakeUpModeSet(ADXL362_WAKEUP_OFF);
             (void)eADXL362_MeasureModeSet(ADXL362_MEASURE_ON);
             (void)eADXL362_OutputDataRateSet(ADXL362_ODR_100_HZ);
-            eADXL362_NoiseControlSet(ADXL362_NOISE_MODE_ULTRALOW);
+            eADXL362_NoiseModeSet(ADXL362_NOISE_MODE_ULTRALOW);
+            break;
+         case 'a':
+            eADXL362_NoiseModeSet(ADXL362_NOISE_MODE_NORMAL);
+            break;
+         case 'b':
+            eADXL362_NoiseModeSet(ADXL362_NOISE_MODE_LOW);
+            break;
+         case 'c':
+            eADXL362_NoiseModeSet(ADXL362_NOISE_MODE_ULTRALOW);
+            break;
+         case 'd':
+            (void)eADXL362_OutputDataRateSet(ADXL362_ODR_12_5_HZ);
+            break;
+         case 'e':
+            (void)eADXL362_OutputDataRateSet(ADXL362_ODR_100_HZ);
+            break;
+         case 'f':
+            (void)eADXL362_OutputDataRateSet(ADXL362_ODR_400_HZ);
             break;
          default:
          case '0':
@@ -2038,7 +2465,7 @@ static void vCfgADX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
    {
       (void)eADXL362_AccelerationRead();
    }
-   PRINT_CUSTOM("RSL,CFG,ADX+%s\n","1");
+   PRINT_CUSTOM("$RSL,CFG,ADX,%c+%s\n",(char)p_pu8Arg[0u],"1");
 }
 static void vCfgLIS(uint8_t * p_pu8Arg, uint8_t p_u8Size)
 {
@@ -2078,7 +2505,7 @@ static void vCfgLIS(uint8_t * p_pu8Arg, uint8_t p_u8Size)
    {
       eLIS2MDL_MagneticRead();
    }
-   PRINT_CUSTOM("RSL,CFG,LIS+%s\n","1");
+   PRINT_CUSTOM("$RSL,CFG,LIS,%c+%s\n",(char)p_pu8Arg[0u],"1");
 }
 static void vCfgLSM(uint8_t * p_pu8Arg, uint8_t p_u8Size)
 {
@@ -2113,7 +2540,7 @@ static void vCfgLSM(uint8_t * p_pu8Arg, uint8_t p_u8Size)
          (void)eLSM6DSL_GyroRead();
       }
    }
-   PRINT_CUSTOM("RSL,CFG,LSM+%s\n","1");
+   PRINT_CUSTOM("$RSL,CFG,LSM,%c+%s\n",(char)p_pu8Arg[0u],"1");
 }
 
 static void vCfgORG(uint8_t * p_pu8Arg, uint8_t p_u8Size)
@@ -2127,6 +2554,19 @@ static void vCfgORG(uint8_t * p_pu8Arg, uint8_t p_u8Size)
             break;
          case '1':
             vORG1510_Constellation(1,1,1,0);
+            break;
+         case 'o':
+            vHal_GPIO_Set(GPS_POWER_EN);            
+            break;
+         case 'f':
+            vHal_GPIO_Clear(GPS_POWER_EN);            
+            break;
+         case 'i':
+            vORG1510_Init(g_sORG1510Context);
+            eUartMngt_StateSet(USM_GPS);
+            break;
+         case 'u':
+            eUartMngt_StateSet(USM_IDLE);
             break;
          default:
             break;

@@ -27,7 +27,7 @@
 #define ADV_DATA_SIZE_MAX                 (BLE_GAP_ADV_MAX_SIZE)        /* -> 31 for BLE 4.2, 255 for BLE 5.0 */
 #define SR_ADV_DATA_SIZE_MAX              (BLE_GAP_ADV_MAX_SIZE - 3u)   /* -> 31 for BLE 4.2, 255 for BLE 5.0 */
 #define ADV_SENS_DATA_SIZE                ((uint8_t)5u)
-#define ADV_INFO_SIZE                     ((uint8_t)7u)
+#define ADV_INFO_SIZE                     ((uint8_t)5u)
 #define DEVICE_NAME_SIZE_MAX              (uint8_t)(ADV_DATA_SIZE_MAX - ADV_SENS_DATA_SIZE - ADV_INFO_SIZE - 1u)/* -1 for end char */
 
 /****************************************************************************************

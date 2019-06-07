@@ -65,11 +65,16 @@ uint8_t g_au8Data[256u] = { 0u };
  */
 void vOperational_Entry(void)
 {
+   uint8_t l_au8Data[6u] = { 0u };
+   uint8_t l_u8Size = 0u;
    /* Set LED to Operational */
    vSimpleLED_BLACK();
 
    CLEAR_TERMINAL();
-   vHT_PrintHelp();   
+   vBLE_MACAddressGet(l_au8Data, &l_u8Size);
+   PRINT_CUSTOM("%02X:%02X:%02X:%02X:%02X:%02X\n",  
+   l_au8Data[5u],l_au8Data[4u],l_au8Data[3u],l_au8Data[2u],l_au8Data[1u],l_au8Data[0u]);   
+//   vHT_PrintHelp();   
 }
 /**@brief Main mode of operation, get data and send it over SigFox, advertise, etc ...
  * @return None

@@ -191,6 +191,7 @@
    #define PRINT_WARNING(p_type, p_data)
    #define PRINT_EVENT(p_type, p_data)
    #define PRINT_ERROR(p_type, p_data)  
+   #define PRINT_CUSTOM(p_type, ...)
 #endif
 
 /************************************************************************
