@@ -85,10 +85,7 @@
 #define MAX_SENSOR_CFG_VALUE   ((uint32_t)2047u) /* (2*POW(OP_CODE_LAST_SENSOR) - 1)*/
 
 /* Event/Node/BinaryTree Defines */
-#define MAX_EVENTS         ((uint8_t)5u)
-#define EVENT_MAX          ((uint8_t)MAX_EVENTS)
-#define MAX_TREES          ((uint8_t)MAX_EVENTS)
-   
+#define MAX_EVENTS         ((uint8_t)1u)   
 
 #if (EN_LOG == 1)
    #define CLEAR_TERMINAL()                     \
@@ -96,8 +93,7 @@
       }while(0)
       
    #define RESET_STYLE()                     SEGGER_RTT_printf(0, RTT_CTRL_RESET)
-   //#define PRINT_FAST(p_data)                do { RESET_STYLE(); SEGGER_RTT_WriteString(0, p_data); } while(0)
-   #define PRINT_FAST(p_data)                do { SEGGER_RTT_WriteString(0, p_data); } while(0)
+   #define PRINT_FAST(p_data)                do { RESET_STYLE(); SEGGER_RTT_WriteString(0, p_data); } while(0)
    #define PRINT_CUSTOM(p_type, ...)                SEGGER_RTT_printf(0, p_type , __VA_ARGS__)
    #define PRINT_ARRAY(p_type, p_data, p_size)              \
       do {                                                  \
@@ -193,6 +189,8 @@
    #define PRINT_ERROR(p_type, p_data)  
    #define PRINT_CUSTOM(p_type, ...)
 #endif
+
+#define CONCAT_STRG_2(strg1,strg2)     strg1""strg2
 
 /************************************************************************
  * Type definitions

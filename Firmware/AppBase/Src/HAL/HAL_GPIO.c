@@ -55,7 +55,8 @@ void vHal_GPIO_Init(void)
    /* Init IO here */
    /* Power switch off GPS */
 	vGPIO_OutputCfg(GPS_POWER_EN, HALGPIO_PIN_NOPULL); 
-   vHal_GPIO_Clear(GPS_POWER_EN);      
+   vHal_GPIO_Clear(GPS_POWER_EN);
+
    /* Power switch off ADXL */
 	vGPIO_OutputCfg(ADXL_POWER_EN, HALGPIO_PIN_NOPULL); 
    vHal_GPIO_Clear(ADXL_POWER_EN);     
@@ -71,8 +72,14 @@ void vHal_GPIO_Init(void)
    /* GPS */
    vGPIO_OutputCfg(GPS_ON, HALGPIO_PIN_NOPULL);
    vHal_GPIO_Clear(GPS_ON);
+#if (BALIZ_V == 3)
+   vGPIO_OutputCfg(GPS_BACKUP, HALGPIO_PIN_NOPULL);
+   vHal_GPIO_Set(GPS_BACKUP);
+#else
    vGPIO_OutputCfg(GPS_RST, HALGPIO_PIN_NOPULL);
    vHal_GPIO_Set(GPS_RST);
+#endif
+
    
    /* UART GPS */
 //	vGPIO_InputCfg(GPS_UART_RX, HALGPIO_PIN_NOPULL);
@@ -94,6 +101,9 @@ void vHal_GPIO_Init(void)
    
    /* ADXL Interrupt + IO */
 	vGPIO_InputCfg(ADXL_INT2, HALGPIO_PIN_NOPULL);
+#if (BALIZ_V == 3)
+	vGPIO_InputCfg(ADXL_INT1, HALGPIO_PIN_NOPULL);
+#endif
 //	vGPIO_OutputCfg(ADXL_CS, HALGPIO_PIN_NOPULL);
 //   vHal_GPIO_Set(ADXL_CS);
    
@@ -101,8 +111,21 @@ void vHal_GPIO_Init(void)
 //	vGPIO_InputCfg(LIS2_INT, HALGPIO_PIN_NOPULL);
    
    /* ST25DV Interrupt */
-	vGPIO_InputCfg(ST25DV_GPO_INT, HALGPIO_PIN_NOPULL);
-   
+	vGPIO_InputCfg(ST25DV_GPO_INT, HALGPIO_PIN_PULLUP);
+#if (BALIZ_V == 3)
+	vGPIO_OutputCfg(ST25DV_LPD, HALGPIO_PIN_NOPULL);
+   vHal_GPIO_Set(ST25DV_LPD);
+#endif
+
+   /* Gauge */
+#if (BALIZ_V == 3)
+	vGPIO_InputCfg(GAUGE_ALERT, HALGPIO_PIN_PULLUP);
+#endif
+
+#if (BALIZ_V == 3)
+	vGPIO_OutputCfg(SDCARD_CS, HALGPIO_PIN_NOPULL);
+   vHal_GPIO_Set(SDCARD_CS);
+#endif
    /* MAX44009 Interrupt */
 //	vGPIO_InputCfg(MAX44009_INT, HALGPIO_PIN_NOPULL);
    

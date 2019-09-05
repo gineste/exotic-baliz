@@ -74,6 +74,7 @@ __STATIC_INLINE void vHal_GPIO_Set(uint32_t p_u32Pin);
 __STATIC_INLINE void vHal_GPIO_Clear(uint32_t p_u32Pin);
 __STATIC_INLINE void vHal_GPIO_Toggle(uint32_t p_u32Pin);
 __STATIC_INLINE uint32_t u32Hal_GPIO_Read(uint32_t p_u32Pin);
+__STATIC_INLINE uint32_t u32Hal_GPIO_OutputRead(uint32_t p_u32Pin);
 __STATIC_INLINE void vGPIO_InputCfg(uint32_t p_u32Pin, e_HalGPIO_PinPull_t p_ePinPull);
 __STATIC_INLINE void vGPIO_OutputCfg(uint32_t p_u32Pin, e_HalGPIO_PinPull_t p_ePinPull);
 __STATIC_INLINE void vGPIO_DefaultCfg(uint32_t p_u32Pin);
@@ -108,13 +109,22 @@ __STATIC_INLINE void vHal_GPIO_Toggle(uint32_t p_u32Pin)
    nrf_gpio_pin_toggle(p_u32Pin);
 }
 
-/**@brief Function for read pin. 
+/**@brief Function for read input pin. 
  * @param[in]  p_u32Pin : IO pin number 
  * @return 0 if voltage null, else positive value
  */
 __STATIC_INLINE uint32_t u32Hal_GPIO_Read(uint32_t p_u32Pin)
 {
    return nrf_gpio_pin_read(p_u32Pin);
+}
+
+/**@brief Function for read output pin. 
+ * @param[in]  p_u32Pin : IO pin number 
+ * @return 0 if voltage null, else positive value
+ */
+__STATIC_INLINE uint32_t u32Hal_GPIO_OutputRead(uint32_t p_u32Pin)
+{
+   return nrf_gpio_pin_out_read(p_u32Pin);
 }
 
 /**@brief Function for read pin. 

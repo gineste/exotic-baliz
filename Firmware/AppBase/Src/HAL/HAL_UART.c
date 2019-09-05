@@ -131,23 +131,26 @@ void vHal_UART_Configure(s_UART_Context_t p_sContext)
  */
 uint32_t u32Hal_UART_Write(const uint8_t * p_cu8DataBuffer, uint8_t p_u8DataLen)
 {
-   uint32_t l_u32ErrCode = 0u;
+   uint32_t l_u32ErrCode = 1u;
    uint8_t l_u8Size = 0u;
    
-#if (LOG_UART == 1)
-   PRINT_UART("%s\n",(char*)p_cu8DataBuffer);
-#endif
-   
-   for(l_u8Size  = 0u; l_u8Size < p_u8DataLen; l_u8Size++)
-   {      
-      do {
-         l_u32ErrCode = app_uart_put(p_cu8DataBuffer[l_u8Size]);
-      } while(l_u32ErrCode != NRF_SUCCESS);
-   }  
-   
-   g_u8DataSendingFlag = 1u;
-   while(g_u8DataSendingFlag == 1u); /* Wait for data to be sent (cleared by interrupt) */
-   
+   if(g_bInitialized == true)
+   {
+   #if (LOG_UART == 1)
+      PRINT_UART("%s\n",(char*)p_cu8DataBuffer);
+   #endif
+      
+      for(l_u8Size  = 0u; l_u8Size < p_u8DataLen; l_u8Size++)
+      {      
+         do {
+            l_u32ErrCode = app_uart_put(p_cu8DataBuffer[l_u8Size]);
+         } while(l_u32ErrCode != NRF_SUCCESS);
+      }  
+      
+      g_u8DataSendingFlag = 1u;
+      while(g_u8DataSendingFlag == 1u); /* Wait for data to be sent (cleared by interrupt) */
+   }
+
    return l_u32ErrCode;
 }
 
@@ -235,7 +238,7 @@ static void vHal_UART_EventHandler(app_uart_evt_t * p_psUartEvent)
  */
 static void vDrvUART_Init(void)
 {
-   //vHal_UART_Configure(g_sCurrentContext);
+   vHal_UART_Configure(g_sCurrentContext);
 }
 /**@brief Static Function to uninit driver uart nrf.
  */

@@ -43,9 +43,9 @@ typedef enum _HAL_I2C_ERRORS_ {
 }e_HalI2c_Error_t;
 
 typedef enum _HAL_I2C_FREQUENCY_ {
-    HALI2C_FREQ_100K = NRF_TWI_FREQ_100K,   ///< 100 kbps.
-    HALI2C_FREQ_250K = NRF_TWI_FREQ_250K,   ///< 250 kbps.
-    HALI2C_FREQ_400K = NRF_TWI_FREQ_400K   ///< 400 kbps.
+    HALI2C_FREQ_100K = NRF_TWI_FREQ_100K, /*< 100 kbps. */
+    HALI2C_FREQ_250K = NRF_TWI_FREQ_250K, /*< 250 kbps. */
+    HALI2C_FREQ_400K = NRF_TWI_FREQ_400K  /*< 400 kbps. */
 }e_HALI2C_Frequency_t;
 
 typedef enum _HAL_I2C_STOP_ {

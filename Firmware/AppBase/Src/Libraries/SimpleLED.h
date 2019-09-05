@@ -102,6 +102,7 @@ void vSimpleLED_Off(void);
 void vSimpleLED_EffectStop(void);
 void vSimpleLED_PreviousColorSet(void);
 void vSimpleLED_ColorSet(e_SimpleLED_Color_t p_eColor);
+uint8_t u8SimpleLED_IsEffectInProgress(void);
 
 static __inline void vSimpleLED_RED(void);
 static __inline void vSimpleLED_GREEN(void);
@@ -119,9 +120,12 @@ static __inline void vSimpleLED_BLACK(void);
 static __inline void vSimpleLED_RED(void)
 {
 #if (ENABLE_LED == 1)
-   LED_RED_ON();
-   LED_GREEN_OFF();
-   LED_BLUE_OFF();
+   if(u8SimpleLED_IsEffectInProgress() == 0u)
+   {
+      LED_RED_ON();
+      LED_GREEN_OFF();
+      LED_BLUE_OFF();
+   }
    g_eLastColor = LED_RED;
 #endif
 }
@@ -131,9 +135,12 @@ static __inline void vSimpleLED_RED(void)
 static __inline void vSimpleLED_GREEN(void)
 {
 #if (ENABLE_LED == 1)
-   LED_RED_OFF();
-   LED_GREEN_ON();
-   LED_BLUE_OFF();
+   if(u8SimpleLED_IsEffectInProgress() == 0u)
+   {
+      LED_RED_OFF();
+      LED_GREEN_ON();
+      LED_BLUE_OFF();
+   }
    g_eLastColor = LED_GREEN;
 #endif
 }
@@ -143,9 +150,12 @@ static __inline void vSimpleLED_GREEN(void)
 static __inline void vSimpleLED_BLUE(void)
 {
 #if (ENABLE_LED == 1)
-   LED_RED_OFF();
-   LED_GREEN_OFF();
-   LED_BLUE_ON();
+   if(u8SimpleLED_IsEffectInProgress() == 0u)
+   {
+      LED_RED_OFF();
+      LED_GREEN_OFF();
+      LED_BLUE_ON();
+   }
    g_eLastColor = LED_BLUE;
 #endif
 }
@@ -155,9 +165,12 @@ static __inline void vSimpleLED_BLUE(void)
 static __inline void vSimpleLED_CYAN(void)
 {
 #if (ENABLE_LED == 1)
-   LED_RED_OFF();
-   LED_GREEN_ON();
-   LED_BLUE_ON();
+   if(u8SimpleLED_IsEffectInProgress() == 0u)
+   {
+      LED_RED_OFF();
+      LED_GREEN_ON();
+      LED_BLUE_ON();
+   }
    g_eLastColor = LED_CYAN;
 #endif
 }
@@ -167,9 +180,12 @@ static __inline void vSimpleLED_CYAN(void)
 static __inline void vSimpleLED_YELLOW(void)
 {
 #if (ENABLE_LED == 1)
-   LED_RED_ON();
-   LED_GREEN_ON();
-   LED_BLUE_OFF();
+   if(u8SimpleLED_IsEffectInProgress() == 0u)
+   {
+      LED_RED_ON();
+      LED_GREEN_ON();
+      LED_BLUE_OFF();
+   }
    g_eLastColor = LED_YELLOW;
 #endif
 }
@@ -179,9 +195,12 @@ static __inline void vSimpleLED_YELLOW(void)
 static __inline void vSimpleLED_MAGENTA(void)
 {
 #if (ENABLE_LED == 1)
-   LED_RED_ON();
-   LED_GREEN_OFF();
-   LED_BLUE_ON();
+   if(u8SimpleLED_IsEffectInProgress() == 0u)
+   {
+      LED_RED_ON();
+      LED_GREEN_OFF();
+      LED_BLUE_ON();
+   }
    g_eLastColor = LED_MAGENTA;
 #endif
 }
@@ -191,9 +210,12 @@ static __inline void vSimpleLED_MAGENTA(void)
 static __inline void vSimpleLED_WHITE(void)
 {
 #if (ENABLE_LED == 1)
-   LED_RED_ON();
-   LED_GREEN_ON();
-   LED_BLUE_ON();
+   if(u8SimpleLED_IsEffectInProgress() == 0u)
+   {
+      LED_RED_ON();
+      LED_GREEN_ON();
+      LED_BLUE_ON();
+   }
    g_eLastColor = LED_WHITE;
 #endif
 }
@@ -203,9 +225,12 @@ static __inline void vSimpleLED_WHITE(void)
 static __inline void vSimpleLED_BLACK(void)
 {
 #if (ENABLE_LED == 1)
-   LED_RED_OFF();
-   LED_GREEN_OFF();
-   LED_BLUE_OFF();
+   if(u8SimpleLED_IsEffectInProgress() == 0u)
+   {
+      LED_RED_OFF();
+      LED_GREEN_OFF();
+      LED_BLUE_OFF();
+   }
    g_eLastColor = LED_BLACK;
 #endif
 }

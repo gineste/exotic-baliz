@@ -343,7 +343,7 @@ static void vI2C_Enable(e_I2C_State_t p_eEnable)
    }
    else
    {
-      //vDrvI2C_Uninit();
+      //vDrvI2C_Uninit(); 
       nrf_drv_twi_disable(&g_sI2CInstance.twi);
    }
 }

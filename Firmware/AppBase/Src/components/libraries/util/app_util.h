@@ -83,7 +83,8 @@ enum
 {
     UNIT_0_625_MS = 625,        /**< Number of microseconds in 0.625 milliseconds. */
     UNIT_1_25_MS  = 1250,       /**< Number of microseconds in 1.25 milliseconds. */
-    UNIT_10_MS    = 10000       /**< Number of microseconds in 10 milliseconds. */
+    UNIT_10_MS    = 10000,      /**< Number of microseconds in 10 milliseconds. */
+    UNIT_100_MS   = 100000      /**< Number of microseconds in 100 milliseconds. */
 };
 
 

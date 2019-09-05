@@ -226,7 +226,9 @@ void vAT_MessageProcess(void)
          {
             if(eHal_Timer_Stop(AT_TimeOutIdx) != HAL_TIMER_ERROR_NONE)
             {
-               __nop();
+               #ifdef DEBUG
+                  __nop();
+               #endif
             }
             g_u8WaitingReplyAT = 0u;
          }
@@ -316,7 +318,7 @@ static void vATTimeOutHandler(void * p_pvParameters)
 {
    if(g_fpCallback != NULL)
    {
-      (*g_fpCallback)(AT_RET_TIMEOUT, NULL, NULL);
+      (*g_fpCallback)(AT_RET_TIMEOUT, NULL, 0u);
    }
    /* We are not waiting reply anymore */
    g_u8WaitingReplyAT = 0u;
@@ -373,10 +375,6 @@ static void vATQueueMsg(e_AT_Commands_t p_eCmd, uint8_t * p_au8Message, uint8_t 
       {
          g_u8QueueInId = 0u;
       }
-   }
-   else
-   {
-      __nop();
    }
 }
 

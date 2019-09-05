@@ -25,7 +25,6 @@
 /****************************************************************************************
  * Defines
  ****************************************************************************************/
-
 #define VOLTAGE_MV_100    (uint16_t)1400*3
 #define VOLTAGE_MV_90     (uint16_t)1300*3
 #define VOLTAGE_MV_20     (uint16_t)1200*3
@@ -201,11 +200,11 @@ void vTool_ASCIIConvert(uint8_t * p_pu8DataIn, uint8_t p_u8SizeIn, uint8_t * p_p
 
 float f32Tool_AltitudeCompute(float p_f32PressurehPaAt0, float p_f32PressurehPa, float p_f32TemperatureDegC)
 {
-   const double l_f32K = 273.15f;
+//   const double l_f32K = 273.15f;
 //   const double l_f32Pow = (1.0f/5.257f);
 //   const double l_f32Den = 0.0065f;
    float l_f32Altitude = 0.0f;
-   float l_f32ConvT = p_f32TemperatureDegC + l_f32K;
+//   float l_f32ConvT = p_f32TemperatureDegC + l_f32K;
    /* 
    h = ((((p_f32PressurehPaAt0/p_f32PressurehPa)^(1/5.257)) - 1) * (p_f32TemperatureDegF + 273.15)) / 0.0065
    */
@@ -214,6 +213,7 @@ float f32Tool_AltitudeCompute(float p_f32PressurehPaAt0, float p_f32PressurehPa,
    
    return l_f32Altitude;
 }
+
 /****************************************************************************************
  * Private functions
  ****************************************************************************************/

@@ -85,7 +85,7 @@ static s_HalSpi_Context_t g_sSPIContext = {
    .u32MOSIPin = NRF_DRV_SPI_PIN_NOT_USED,
    .u32MISOPin = NRF_DRV_SPI_PIN_NOT_USED,
    .u32ClockPin = NRF_DRV_SPI_PIN_NOT_USED,
-   .u32ChipSelectPin = NULL,
+   .u32ChipSelectPin = UINT32_MAX,
    .eMode = HALSPI_MODE_0,
    .eFrequency = HALSPI_FREQ_1M,
 };

@@ -18,6 +18,8 @@
 /****************************************************************************************
  * Include Files
  ****************************************************************************************/
+#include "sdk_config.h"
+ 
 #if (WDT_ENABLED == 1)
 
 #include <stdint.h>
@@ -70,7 +72,10 @@ e_HalWDT_Error_t eHal_WDT_Init(uint32_t p_u32TimeOut, fpv_WatchdogHandler_t p_sW
    
    if(g_u8IsInitialized == 0u)
    {
-      l_sConfig.reload_value = (p_u32TimeOut<WDT_MIN_TIMEOUT)?WDT_MIN_TIMEOUT:p_u32TimeOut;
+      if(p_u32TimeOut >= WDT_MIN_TIMEOUT)
+      {
+         l_sConfig.reload_value = p_u32TimeOut;
+      }
       
       if(p_sWatchdogHandler != NULL)
       {
@@ -99,7 +104,7 @@ e_HalWDT_Error_t eHal_WDT_Init(uint32_t p_u32TimeOut, fpv_WatchdogHandler_t p_sW
 e_HalWDT_Error_t eHal_WDT_Start(void)
 {
    nrf_drv_wdt_channel_id  l_sChannelId = (nrf_drv_wdt_channel_id)WDT_REGISTER_IDX;
-   e_HalWDT_Error_t l_eErrCode = HALWDT_ERROR_PARAM;
+   e_HalWDT_Error_t l_eErrCode = HALWDT_ERROR_INIT;
    
    if(g_u8IsInitialized == 1u)
    {
@@ -108,10 +113,6 @@ e_HalWDT_Error_t eHal_WDT_Start(void)
          l_eErrCode = HALWDT_ERROR_NONE;
          nrf_drv_wdt_enable();
       }
-   }
-   else
-   {
-      l_eErrCode = HALWDT_ERROR_INIT;
    }
    
    return l_eErrCode;
@@ -149,7 +150,7 @@ e_HalWDT_Error_t eHal_WDT_Stop(void)
 static void vWDTHandler(void)
 {
    // NVIC System Reset
-   __nop();
+   NVIC_SystemReset();
 }
 
 /****************************************************************************************

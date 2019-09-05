@@ -103,13 +103,13 @@ void vCompilationInfoToTimestamp(uint32_t * p_pu32Timestamp)
    uint32_t l_u32TimeStamp = 0u;
    
    char l_pchDate[20u] = { 0 };
-   char l_pchDateMonth[3u] = { 0 };
-   char l_pchDateDay[2u] = { 0 };
-   char l_pchDateYear[4u] = { 0 };
+   char l_pchDateMonth[4u] = { 0 };
+   char l_pchDateDay[3u] = { 0 };
+   char l_pchDateYear[5u] = { 0 };
    char l_pchTime[20u] = { 0 };
-   char l_pchTimeHour[2u] = { 0 };
-   char l_pchTimeMin[2u] = { 0 };
-   char l_pchTimeSec[2u] = { 0 };
+   char l_pchTimeHour[3u] = { 0 };
+   char l_pchTimeMin[3u] = { 0 };
+   char l_pchTimeSec[3u] = { 0 };
    
    l_u8StrLengthDate = strlen(__DATE__);
    l_u8StrLengthTime = strlen(__TIME__);
@@ -405,14 +405,14 @@ Return      :   Pointer to ASCII string.
 ============================================================================= */
 char* pachMkTimeToAscii (const s_ExoTime_t *p_psExoTime)
 {
-  sprintf (g_achTimeAsciiFormat, "%.3s %.3s %d %.2d:%.2d:%.2d UTC %d"
-                                , g_cachLUTDayName[p_psExoTime->u8DayOfWeek]
-                                , g_cachLUTMonName[p_psExoTime->u8Month - 1u]
-                                , p_psExoTime->u8DayOfMonth
-                                , p_psExoTime->u8Hour
-                                , p_psExoTime->u8Minute
-                                , p_psExoTime->u8Second
-                                , p_psExoTime->u16Year);
+  snprintf (g_achTimeAsciiFormat, 32, "%.3s %.3s %d %.2d:%.2d:%.2d UTC %d"
+                                    , g_cachLUTDayName[p_psExoTime->u8DayOfWeek]
+                                    , g_cachLUTMonName[p_psExoTime->u8Month - 1u]
+                                    , p_psExoTime->u8DayOfMonth
+                                    , p_psExoTime->u8Hour
+                                    , p_psExoTime->u8Minute
+                                    , p_psExoTime->u8Second
+                                    , p_psExoTime->u16Year);
 
   return (g_achTimeAsciiFormat);
 }

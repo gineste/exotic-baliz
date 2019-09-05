@@ -61,7 +61,7 @@
 // <q> LTC243X Present
 // <i> The LTC2943 is a gauge sensor. It provides information on battery.
 #ifndef EN_LTC2943
-#define EN_LTC2943 1
+#define EN_LTC2943 0
 #endif
 // <q> ST25DV Present
 // <i> The ST25DV is an EEPROM/NFC. It provides storage support.
@@ -91,32 +91,37 @@
 #define ENABLE_BLE 1
 #endif
 // <o> Fast Advertise Interval - mseconds <10-1000:5>
+// <i> FAST_ADV_INTERVAL_BLE
 #ifndef FAST_ADV_INTERVAL_BLE
 #define FAST_ADV_INTERVAL_BLE 250
 #endif
 #define FAST_ADV_INT_BLE_COMP (FAST_ADV_INTERVAL_BLE<<3)/5
-// <o> Fast Advertise Time out - seconds <0-600:5>
-// <i> Timeout between 0 sec(unlimited) and 600 sec with step of 5 sec - FAST_ADV_TIMEOUT_BLE
+// <o> Fast Advertise Time out - seconds <0-500:5>
+// <i> Timeout between 0 sec(unlimited) and 600 sec with step of 5 sec
+// <i> FAST_ADV_TIMEOUT_BLE
 #ifndef FAST_ADV_TIMEOUT_BLE
 #define FAST_ADV_TIMEOUT_BLE 120
 #endif
-// <o> Slow Advertise Interval - mseconds <1000-30000:5>
+// <o> Slow Advertise Interval - mseconds <500-10000:5>
 #ifndef SLOW_ADV_INTERVAL_BLE
 #define SLOW_ADV_INTERVAL_BLE 1000
 #endif
 #define SLOW_ADV_INT_BLE_COMP (SLOW_ADV_INTERVAL_BLE<<3)/5
 // <o> Slow Advertise Time out - seconds <0-3600:5>
-// <i> Timeout between  0 sec(unlimited) and 1h with step of 5 sec - SLOW_ADV_TIMEOUT_BLE
+// <i> Timeout between  0 sec(unlimited) and 1h with step of 5 sec
+// <i> SLOW_ADV_TIMEOUT_BLE
 #ifndef SLOW_ADV_TIMEOUT_BLE
 #define SLOW_ADV_TIMEOUT_BLE 120
 #endif
 // <o> WakeUp BLE after end of advertising Time out - seconds <00-600:10>
-// <i> Timeout between 0 sec(unlimited) and 10 min with step of 10 sec - WAKE_ADV_TIMEOUT_BLE
+// <i> Timeout between 0 sec(unlimited) and 10 min with step of 10 sec
+// <i> WAKE_ADV_TIMEOUT_BLE
 #ifndef WAKE_ADV_TIMEOUT_BLE
 #define WAKE_ADV_TIMEOUT_BLE 0
 #endif
 // <s> Default Prefix BLE Name
-// <i> Always start with PREFIX "SF_" - DEFAULT_PREFIX_BLE_DEVICE_NAME
+// <i> Always start with PREFIX "SF_"
+// <i> DEFAULT_PREFIX_BLE_DEVICE_NAME
 #ifndef DEFAULT_PREFIX_BLE_DEVICE_NAME
 #define DEFAULT_PREFIX_BLE_DEVICE_NAME "HT_"
 #endif
@@ -132,6 +137,7 @@
 // <h> Modules Configuration
 //==========================================================
 // <o> Board Type
+// <i> BOARD_TYPE
 // <i> Select board type for specific advertise/Ext update (Baliz, Graal, SID)
 // <0=> None 
 // <1=> Baliz
@@ -147,7 +153,8 @@
 #define USE_CASE_NUMBER 255
 #endif
 // <q> LED Enabled
-// <i> ENABLE_LED - Check it if you want to disable LED function(blink/fade).
+// <i> Check it if you want to disable LED function(blink/fade).
+// <i> ENABLE_LED
 #ifndef ENABLE_LED
 #define ENABLE_LED 1
 #endif

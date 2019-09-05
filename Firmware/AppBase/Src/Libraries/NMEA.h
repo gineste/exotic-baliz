@@ -94,6 +94,17 @@ typedef struct _NMEA_GLL_STRUCT_ {
    uint8_t u8ModePosition;
 }s_NMEA_GLL_t;
 
+typedef struct _NMEA_GST_STRUCT_ {
+   uint8_t au8FixDateUTC[NMEA_FIX_DATE_UTC];
+   uint16_t u16RMSPseudoRangeResiduals; /* 0.1 unit */
+   float f32SigmaErrorSemiMajor; /* in m */
+   float f32SigmaErrorSemiMinor; /* in m */
+   float f32ErrorOrientation; /* in degrees */
+   float f32SigmaErrorLatitude; /* in m */
+   float f32SigmaErrorLongitude; /* in m */
+   float f32SigmaErrorHeight; /* in m */
+}s_NMEA_GST_t;
+
 typedef struct _NMEA_ZDA_STRUCT_ {
    uint8_t au8DateUTC[NMEA_FIX_DATE_UTC];
    uint8_t u8Day;
@@ -127,6 +138,8 @@ void vNMEA_LastRMCFrameGet(uint8_t * p_pau8Frame, uint8_t * p_pu8Size);
 void vNMEA_LastDecodedRMCGet(s_NMEA_RMC_t * p_psRMC);
 void vNMEA_LastGSAFrameGet(uint8_t * p_pau8Frame, uint8_t * p_pu8Size);
 void vNMEA_LastDecodedGSAGet(s_NMEA_GSA_t * p_psGSA);
+void vNMEA_LastGSTFrameGet(uint8_t * p_pau8Frame, uint8_t * p_pu8Size);
+void vNMEA_LastDecodedGSTGet(s_NMEA_GST_t * p_psGST);
 void vNMEA_LastZDAFrameGet(uint8_t * p_pau8Frame, uint8_t * p_pu8Size);
 void vNMEA_LastDecodedZDAGet(s_NMEA_ZDA_t * p_psZDA);
 void vNMEA_LastGSVFrameGet(uint8_t * p_pau8FrameOne, uint8_t * p_pu8SizeOne, 
@@ -137,6 +150,7 @@ void vNMEA_LastDecodedGSVGet(s_NMEA_GSV_t * p_psGSV);
 void vNMEA_PMTKGet(s_NMEA_PMTK_t * p_psPMTK);
 
 void vNMEA_IsFixed(uint8_t * p_pu8IsFixed);
+void vNMEA_FixReset(void);
 
 #endif /* NMEA_H */
 

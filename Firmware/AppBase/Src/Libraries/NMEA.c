@@ -54,6 +54,7 @@
 #define NMEA_RMC_DECODER_FCT_NB     (uint8_t)12u
 #define NMEA_GSA_DECODER_FCT_NB     (uint8_t)17u
 #define NMEA_GLL_DECODER_FCT_NB     (uint8_t)6u
+#define NMEA_GST_DECODER_FCT_NB     (uint8_t)8u
 #define NMEA_ZDA_DECODER_FCT_NB     (uint8_t)6u
 
 /****************************************************************************************
@@ -75,6 +76,7 @@ typedef enum _NMEA_SENTENCE_ID_ {
    NMEA_GPGSV,
    NMEA_GPGLL,
    NMEA_GNGLL,
+   NMEA_GPGST,
    NMEA_GNZDA,
    NMEA_SENTENCES_NB,
    NMEA_UNKNOWN = 0xFF
@@ -85,6 +87,7 @@ typedef void (*fpvNMEAGGADecoder_t)(uint8_t * p_pau8Frame, uint8_t p_u8Size, s_N
 typedef void (*fpvNMEARMCDecoder_t)(uint8_t * p_pau8Frame, uint8_t p_u8Size, s_NMEA_RMC_t * p_psDecoded);
 typedef void (*fpvNMEAGSADecoder_t)(uint8_t * p_pau8Frame, uint8_t p_u8Size, s_NMEA_GSA_t * p_psDecoded);
 typedef void (*fpvNMEAGLLDecoder_t)(uint8_t * p_pau8Frame, uint8_t p_u8Size, s_NMEA_GLL_t * p_psDecoded);
+typedef void (*fpvNMEAGSTDecoder_t)(uint8_t * p_pau8Frame, uint8_t p_u8Size, s_NMEA_GST_t * p_psDecoded);
 typedef void (*fpvNMEAZDADecoder_t)(uint8_t * p_pau8Frame, uint8_t p_u8Size, s_NMEA_ZDA_t * p_psDecoded);
 
 /****************************************************************************************
@@ -160,6 +163,14 @@ static void vGLLLongitudeIndicator(uint8_t * p_pu8Data, uint8_t p_u8Size, s_NMEA
 static void vGLLFixUTCDate(uint8_t * p_pu8Data, uint8_t p_u8Size, s_NMEA_GLL_t * p_psDecoded);
 static void vGLLModePosition(uint8_t * p_pu8Data, uint8_t p_u8Size, s_NMEA_GLL_t * p_psDecoded);
 
+static void vGSTFixUTCDate(uint8_t * p_pu8Data, uint8_t p_u8Size, s_NMEA_GST_t * p_psDecoded);
+static void vGSTRMS(uint8_t * p_pu8Data, uint8_t p_u8Size, s_NMEA_GST_t * p_psDecoded);
+static void vGSTErrorSemiMajor(uint8_t * p_pu8Data, uint8_t p_u8Size, s_NMEA_GST_t * p_psDecoded);
+static void vGSTErrorSemiMinor(uint8_t * p_pu8Data, uint8_t p_u8Size, s_NMEA_GST_t * p_psDecoded);
+static void vGSTErrorOrientation(uint8_t * p_pu8Data, uint8_t p_u8Size, s_NMEA_GST_t * p_psDecoded);
+static void vGSTErrorLatitude(uint8_t * p_pu8Data, uint8_t p_u8Size, s_NMEA_GST_t * p_psDecoded);
+static void vGSTErrorLongitude(uint8_t * p_pu8Data, uint8_t p_u8Size, s_NMEA_GST_t * p_psDecoded);
+static void vGSTErrorHeight(uint8_t * p_pu8Data, uint8_t p_u8Size, s_NMEA_GST_t * p_psDecoded);
 
 static void vZDAUTCTime(uint8_t * p_pu8Data, uint8_t p_u8Size, s_NMEA_ZDA_t * p_psDecoded);
 static void vZDADay(uint8_t * p_pu8Data, uint8_t p_u8Size, s_NMEA_ZDA_t * p_psDecoded);
@@ -184,6 +195,7 @@ static const char g_cachNMEAID[NMEA_SENTENCES_NB][NMEA_SENTENCE_SIZE] = {
    "GPGSV",
    "GPGLL",
    "GNGLL",
+   "GPGST",
    "GNZDA"
 };
 
@@ -208,6 +220,8 @@ volatile uint8_t g_au8NMEALastZDA[NMEA_MAX_SIZE] = { 0u };
 volatile uint8_t g_u8LastZDASize = 0u;
 volatile uint8_t g_au8NMEALastGSV[NMEA_MAX_SIZE] = { 0u };
 volatile uint8_t g_u8LastGSVSize = 0u;
+volatile uint8_t g_au8NMEALastGST[NMEA_MAX_SIZE] = { 0u };
+volatile uint8_t g_u8LastGSTSize = 0u;
 
 static uint8_t g_u8LocationFixed = 0u;
 
@@ -360,6 +374,21 @@ s_NMEA_GSV_t g_sNMEAGSV[NMEA_GSV_STRUCT_ARRAY] = {
    },
 };
 
+
+#ifndef DEBUG
+static 
+#endif
+s_NMEA_GST_t g_sNMEAGST = {
+   .au8FixDateUTC = { 0u },
+   .u16RMSPseudoRangeResiduals = 0u,      /* 0.1 unit */
+   .f32SigmaErrorSemiMajor = 99999.9f,    /* in m */
+   .f32SigmaErrorSemiMinor = 99999.9f,    /* in m */
+   .f32ErrorOrientation = 99999.9f,       /* in degrees */
+   .f32SigmaErrorLatitude = 99999.9f,     /* in m */
+   .f32SigmaErrorLongitude = 99999.9f,    /* in m */
+   .f32SigmaErrorHeight = 99999.9f,       /* in m */
+};
+
 static const fpvNMEAPMTKDecoder_t g_cafpvPMTKDecoder[NMEA_PMTK_DECODER_FCT_NB] = { 
    vPMTKType, vPMTKCmd, vPMTKFlag
 };
@@ -388,6 +417,11 @@ static const fpvNMEAGLLDecoder_t g_cafpvGLLDecoder[NMEA_GLL_DECODER_FCT_NB] = {
    vGLLFixUTCDate, vGLLModePosition
 };
 
+static const fpvNMEAGSTDecoder_t g_cafpvGSTDecoder[NMEA_GST_DECODER_FCT_NB] = { 
+	vGSTFixUTCDate, vGSTRMS, vGSTErrorSemiMajor, vGSTErrorSemiMinor, vGSTErrorOrientation, 
+   vGSTErrorLatitude, vGSTErrorLongitude, vGSTErrorHeight
+};
+
 static const fpvNMEAZDADecoder_t g_cafpvZDADecoder[NMEA_ZDA_DECODER_FCT_NB] = { 
    vZDAUTCTime, vZDADay, vZDAMonth, vZDAYear, vZDAOffsetGMTHour, vZDAOffsetGMTMinute
 };
@@ -409,7 +443,6 @@ void vNMEA_UpdateFrame(uint8_t p_u8Byte)
    static uint8_t l_u8ChecksumRead = 0u;
    static uint8_t l_u8ValidFrame = 0u;
    static uint8_t l_au8NMEABuffer[NMEA_MAX_SIZE] = { 0u };
-   static uint8_t l_au8HardwareTestNMEABuffer[NMEA_MAX_SIZE+12] = { '$','R','S','L',',','G','P','S','+','1',',', 0u };
    
 	/* Cursor overflow or beginning of a frame */
 	if(   (l_u8SentenceIdx >= NMEA_MAX_SIZE) 
@@ -462,10 +495,8 @@ void vNMEA_UpdateFrame(uint8_t p_u8Byte)
       strcpy((char*)g_au8NMEABuffer, (char*)l_au8NMEABuffer);
       
    #if (LOG_GPS == 1)
-      strcpy((char*)&l_au8HardwareTestNMEABuffer[11u], (char*)l_au8NMEABuffer);
-      
-      l_au8HardwareTestNMEABuffer[l_u8SentenceIdx+11u] = '\0';
-      PRINT_UART("%s",l_au8HardwareTestNMEABuffer);
+      l_au8NMEABuffer[l_u8SentenceIdx] = '\0';
+      PRINT_UART("%s",l_au8NMEABuffer);
    #endif
       /* Add it to queue (Frame and Size). Decode it later */
       vNMEAQueueMsg((uint8_t *)g_au8NMEABuffer, l_u8SentenceIdx);
@@ -516,6 +547,11 @@ void vNMEA_FrameProcessing(void)
             memcpy((void*)g_au8NMEALastGLL, l_au8NMEABuffer, l_u8Size);
             break;
          case NMEA_GPGSV:
+            break;
+         case NMEA_GPGST:
+            vParserNMEA((e_NMEASentence_t)l_u8SentenceID, l_au8NMEABuffer, l_u8Size, (void*)&g_sNMEAGST);
+            g_u8LastGSTSize = l_u8Size;
+            memcpy((void*)g_au8NMEALastGST, l_au8NMEABuffer, l_u8Size);
             break;
          case NMEA_GNZDA:
             vParserNMEA((e_NMEASentence_t)l_u8SentenceID, l_au8NMEABuffer, l_u8Size, (void*)&g_sNMEAZDA);
@@ -590,6 +626,22 @@ void vNMEA_LastDecodedGSAGet(s_NMEA_GSA_t * p_psGSA)
 }
 
 
+void vNMEA_LastGSTFrameGet(uint8_t * p_pau8Frame, uint8_t * p_pu8Size)
+{
+   if((p_pau8Frame != NULL) && (p_pu8Size != NULL))
+   {
+      memcpy(p_pau8Frame, (void*)g_au8NMEALastGST, g_u8LastGSTSize);
+      (*p_pu8Size) = g_u8LastGSTSize;
+   }
+}
+void vNMEA_LastDecodedGSTGet(s_NMEA_GST_t * p_psGST)
+{
+   if(p_psGST != NULL)
+   {
+      (*p_psGST) = g_sNMEAGST;
+   }
+}
+
 void vNMEA_LastZDAFrameGet(uint8_t * p_pau8Frame, uint8_t * p_pu8Size)
 {
    if((p_pau8Frame != NULL) && (p_pu8Size != NULL))
@@ -650,6 +702,11 @@ void vNMEA_IsFixed(uint8_t * p_pu8IsFixed)
    {
       (*p_pu8IsFixed) = g_u8LocationFixed;
    }
+}
+
+void vNMEA_FixReset(void)
+{
+   g_u8LocationFixed = 0u;
 }
 
 /****************************************************************************************
@@ -958,6 +1015,12 @@ static void vDecoderNMEA(e_NMEASentence_t p_eSentenceID, uint8_t p_u8FunctionIdx
 //            (*g_cafpvGSVDecoder[p_u8FunctionIdx])(p_pau8Buffer, p_u8Size, (s_NMEA_GSV_t*)p_pvDecoded);
 //         }
          break;
+      case NMEA_GPGST:
+         if( ((*g_cafpvGSTDecoder[p_u8FunctionIdx]) != NULL) && (p_u8FunctionIdx < NMEA_GST_DECODER_FCT_NB) ) 
+         {
+            (*g_cafpvGSTDecoder[p_u8FunctionIdx])(p_pau8Buffer, p_u8Size, (s_NMEA_GST_t*)p_pvDecoded);
+         }
+         break;
       case NMEA_GNZDA:
          if( ((*g_cafpvZDADecoder[p_u8FunctionIdx]) != NULL) && (p_u8FunctionIdx < NMEA_ZDA_DECODER_FCT_NB) ) 
          {
@@ -1055,9 +1118,9 @@ static void vGGAFixIndicator(uint8_t * p_pu8Data, uint8_t p_u8Size, s_NMEA_GGA_t
 }
 static void vGGASatellitesNumber(uint8_t * p_pu8Data, uint8_t p_u8Size, s_NMEA_GGA_t * p_psDecoded)
 {
-   if( (p_u8Size == 2u) && (p_pu8Data != NULL) && (p_psDecoded != NULL) )
+   if( (p_u8Size != 0u) && (p_pu8Data != NULL) && (p_psDecoded != NULL) )
    {
-      p_psDecoded->u8NbSatTracked = u8CharHexToByte((char)p_pu8Data[0u])*10u + u8CharHexToByte((char)p_pu8Data[1u]);
+      p_psDecoded->u8NbSatTracked = (uint8_t)(strtod((char*)p_pu8Data, NULL));
    }
 }
 static void vGGAHDOP(uint8_t * p_pu8Data, uint8_t p_u8Size, s_NMEA_GGA_t * p_psDecoded)
@@ -1358,6 +1421,65 @@ static void vGLLModePosition(uint8_t * p_pu8Data, uint8_t p_u8Size, s_NMEA_GLL_t
    }
 }
 
+/*************************
+ * Decoder functions GST *
+ *************************/
+static void vGSTFixUTCDate(uint8_t * p_pu8Data, uint8_t p_u8Size, s_NMEA_GST_t * p_psDecoded)
+{
+   if( (p_u8Size != 0u) && (p_pu8Data != NULL) && (p_psDecoded != NULL) )
+   {
+      memcpy(p_psDecoded->au8FixDateUTC, p_pu8Data, p_u8Size);
+   }
+}
+static void vGSTRMS(uint8_t * p_pu8Data, uint8_t p_u8Size, s_NMEA_GST_t * p_psDecoded)
+{
+   if( (p_u8Size != 0u) && (p_pu8Data != NULL) && (p_psDecoded != NULL) )
+   {
+      p_psDecoded->u16RMSPseudoRangeResiduals = (uint16_t)(strtod((char*)p_pu8Data, NULL)*10.0f);
+   }
+}
+static void vGSTErrorSemiMajor(uint8_t * p_pu8Data, uint8_t p_u8Size, s_NMEA_GST_t * p_psDecoded)
+{
+   if( (p_u8Size != 0u) && (p_pu8Data != NULL) && (p_psDecoded != NULL) )
+   {
+      p_psDecoded->f32SigmaErrorSemiMajor = strtod((char*)p_pu8Data, NULL);
+   }
+}
+static void vGSTErrorSemiMinor(uint8_t * p_pu8Data, uint8_t p_u8Size, s_NMEA_GST_t * p_psDecoded)
+{
+   if( (p_u8Size != 0u) && (p_pu8Data != NULL) && (p_psDecoded != NULL) )
+   {
+      p_psDecoded->f32SigmaErrorSemiMinor = strtod((char*)p_pu8Data, NULL);
+   }
+}
+static void vGSTErrorOrientation(uint8_t * p_pu8Data, uint8_t p_u8Size, s_NMEA_GST_t * p_psDecoded)
+{   
+   if( (p_u8Size != 0u) && (p_pu8Data != NULL) && (p_psDecoded != NULL) )
+   {
+      p_psDecoded->f32ErrorOrientation = strtod((char*)p_pu8Data, NULL);
+   }
+}
+static void vGSTErrorLatitude(uint8_t * p_pu8Data, uint8_t p_u8Size, s_NMEA_GST_t * p_psDecoded)
+{
+   if( (p_u8Size != 0u) && (p_pu8Data != NULL) && (p_psDecoded != NULL) )
+   {
+      p_psDecoded->f32SigmaErrorLatitude = strtod((char*)p_pu8Data, NULL);
+   }
+}
+static void vGSTErrorLongitude(uint8_t * p_pu8Data, uint8_t p_u8Size, s_NMEA_GST_t * p_psDecoded)
+{
+   if( (p_u8Size != 0u) && (p_pu8Data != NULL) && (p_psDecoded != NULL) )
+   {
+      p_psDecoded->f32SigmaErrorLongitude = strtod((char*)p_pu8Data, NULL);
+   }
+}
+static void vGSTErrorHeight(uint8_t * p_pu8Data, uint8_t p_u8Size, s_NMEA_GST_t * p_psDecoded)
+{
+   if( (p_u8Size != 0u) && (p_pu8Data != NULL) && (p_psDecoded != NULL) )
+   {
+      p_psDecoded->f32SigmaErrorHeight = strtod((char*)p_pu8Data, NULL);
+   }
+}
 
 /*************************
  * Decoder functions ZDA *

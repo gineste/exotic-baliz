@@ -251,7 +251,13 @@ static void vCfgORG(uint8_t * p_pu8Arg, uint8_t p_u8Size);
       .fp_vGPIO_Set_t = &vHal_GPIO_Set,
       .fp_vGPIO_Clear_t = &vHal_GPIO_Clear,
       .u32IO_ForceON = GPS_ON,
+   #if (BALIZ_V == 2)
       .u32IO_RESET = GPS_RST
+   #elif (BALIZ_V == 3)
+      .u32IO_RESET = GPS_BACKUP
+   #else
+      #error "Board version not supported!"
+   #endif
 };
 #endif
 
@@ -1787,7 +1793,12 @@ static void vStopRTCTest(void)
    if(eHal_Timer_Stop(g_RTCTestIdx) == HAL_TIMER_ERROR_NONE)
    {
       g_u8RTCCheck = 0u;
+   #if (BALIZ_V == 2)
       vHal_GPIO_Clear(BP1);
+   #elif (BALIZ_V == 3)
+   #else
+      #error "Board version not supported!"
+   #endif
       PRINT_FAST("$RSL,RTC+1\n");
    }
    else
@@ -1814,7 +1825,13 @@ static void vLPMTest(void)
       }
       vHal_GPIO_Clear(GPS_POWER_EN);
       vGPIO_DefaultCfg(GPS_ON);
+   #if (BALIZ_V == 2)
       vGPIO_DefaultCfg(GPS_RST);
+   #elif (BALIZ_V == 3)
+      vGPIO_DefaultCfg(GPS_BACKUP);
+   #else
+      #error "Board version not supported!"
+   #endif
       vGPIO_DefaultCfg(GPS_POWER_EN);
       vGPIO_DefaultCfg(GPS_UART_RX);
       vGPIO_DefaultCfg(GPS_UART_TX);
@@ -1882,7 +1899,12 @@ static void vLPMTest(void)
       {
          eHal_Timer_Stop(g_RTCTestIdx);
       }
+   #if (BALIZ_V == 2)
       vGPIO_DefaultCfg(BP1);
+   #elif (BALIZ_V == 3)
+   #else
+      #error "Board version not supported!"
+   #endif
       
       /* SigFox */
       if(g_u8SigFoxCWTest == 1u)
@@ -1935,7 +1957,12 @@ static void vHTSensorUpdateHandler(void * p_pvContext)
 
 static void vHTRTCHandler(void * p_pvContext)
 {
-   vHal_GPIO_Toggle(BP1);
+   #if (BALIZ_V == 2)
+      vHal_GPIO_Toggle(BP1);
+   #elif (BALIZ_V == 3)
+   #else
+      #error "Board version not supported!"
+   #endif
 }
 
 static void vGPSInit(void)
@@ -2569,11 +2596,23 @@ static void vCfgORG(uint8_t * p_pu8Arg, uint8_t p_u8Size)
          case 'u':
             eUartMngt_StateSet(USM_IDLE);
             break;
-         case 'b':
-            vHal_GPIO_Clear(GPS_RST);  
+         case 'b':   
+         #if (BALIZ_V == 2)
+            vHal_GPIO_Clear(GPS_RST);
+         #elif (BALIZ_V == 3)
+            vHal_GPIO_Clear(GPS_BACKUP);
+         #else
+            #error "Board version not supported!"
+         #endif
             break;
-         case 'c':
-            vHal_GPIO_Set(GPS_RST);  
+         case 'c':         
+         #if (BALIZ_V == 2)
+            vHal_GPIO_Set(GPS_RST);
+         #elif (BALIZ_V == 3)
+            vHal_GPIO_Set(GPS_BACKUP);
+         #else
+            #error "Board version not supported!"
+         #endif
             break;
          default:
             break;

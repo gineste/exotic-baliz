@@ -24,6 +24,7 @@
  ****************************************************************************************/
 #define HAL_TIMER_DEF(TimerID)            APP_TIMER_DEF(TimerID)
 #define HAL_TIMER_MS_TO_TICKS(milliSec)   APP_TIMER_TICKS(milliSec)
+#define HAL_TIMER_TICKS_TO_MS(ticks)      ((uint32_t)ROUNDED_DIV(ticks,(APP_TIMER_CLOCK_FREQ/100)))
 
 /****************************************************************************************
  * Type definitions

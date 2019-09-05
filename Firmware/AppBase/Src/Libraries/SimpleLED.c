@@ -168,6 +168,11 @@ void vSimpleLED_ColorSet(e_SimpleLED_Color_t p_eColor)
    }
 }
 
+uint8_t u8SimpleLED_IsEffectInProgress(void)
+{   
+   return (g_sCurrentLedEffect.u16Counter != 0u)?1u:0u;
+}
+
 /************************************************************************
  * Private functions
  ************************************************************************/
@@ -209,12 +214,7 @@ static void vColorSet(e_SimpleLED_Color_t p_eColor)
    uint32_t l_u32RedMsk = (1u<<g_sSimpleLedContext.u32PinR);
    uint32_t l_u32GreenMsk = (1u<<g_sSimpleLedContext.u32PinG);
    uint32_t l_u32BlueMsk = (1u<<g_sSimpleLedContext.u32PinB);
-   
-   /* Switch Off all Leds in order to not have strange behavior */ 
-   LED_RED_OFF();
-	LED_GREEN_OFF();
-	LED_BLUE_OFF();
-      
+         
    switch(p_eColor)
 	{
 		case LED_RED:
@@ -244,6 +244,10 @@ static void vColorSet(e_SimpleLED_Color_t p_eColor)
          break;
 	}   
    
+   /* Switch Off all Leds in order to not have strange behavior */ 
+   LED_RED_OFF();
+   LED_GREEN_OFF();
+   LED_BLUE_OFF();
    
    for(l_u8Idx = 0u;l_u8Idx < SIMPLE_LED_NUMBER;l_u8Idx++)
    {

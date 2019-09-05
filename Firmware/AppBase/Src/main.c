@@ -21,13 +21,13 @@
  ************************************************************************/
 #include <stdint.h>
 
-//#include "nrf_soc.h"
 #include "nrf_pwr_mgmt.h"
+
 #include "app_error.h"
 
 #include "MainStateMachine.h"
 
-/*************************************************************************
+/************************************************************************
  * Defines
  ************************************************************************/
 
@@ -44,7 +44,7 @@ static void vPowerManageProcess(void);
 /************************************************************************
  * Variable declarations
  ************************************************************************/
-/* 
+/*
 Without DFU
    IROM1 Start 0x23000;       Size 0x5D000
    IRAM1 Start 0x20003000;    Size 0xD000
@@ -54,7 +54,7 @@ With SDFU
 */
 /************************************************************************
  * Public functions
- ************************************************************************/  
+ ************************************************************************/
 /**@brief main function of project 
  */
 int main(void)
@@ -127,21 +127,14 @@ void FPU_IRQHandler(void)
  */
 static void vPowerManageInit(void)
 {
-    uint32_t err_code = nrf_pwr_mgmt_init();
-    APP_ERROR_CHECK(err_code);
+   APP_ERROR_CHECK(nrf_pwr_mgmt_init());
 }
+
 /**@brief Function for the Power manager.
  */
 static void vPowerManageProcess(void)
 {
    nrf_pwr_mgmt_run();
-//   /* Clear exceptions and PendingIRQ from the FPU unit */
-//   __set_FPSCR(__get_FPSCR()  & ~(0x0000009F ));      
-//   (void) __get_FPSCR();
-//   NVIC_ClearPendingIRQ(FPU_IRQn);
-//   
-//    uint32_t l_u32ErrCode = sd_app_evt_wait();
-//    APP_ERROR_CHECK(l_u32ErrCode);
 }
 
 /************************************************************************
