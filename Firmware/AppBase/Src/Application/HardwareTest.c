@@ -1483,6 +1483,7 @@ static void vStartGPSTest(void)
 {   
 #if (EN_ORG1510 == 1)
    vHal_GPIO_Set(GPS_POWER_EN);  
+   // ORG1510 MK05 Issue
    vGPSInit();
    
    g_u8TestInProgress = 1u;
@@ -1980,7 +1981,7 @@ static void vGPSInit(void)
             break;
          case SM_GPS_WAIT_ACK_GLP:
             vNMEA_PMTKGet(&l_sACK);
-            if((l_sACK.u16Cmd == 262) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
+            //if((l_sACK.u16Cmd == 262) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
             {
                l_eIdxState = SM_GPS_CMD_HDOP;
             }
@@ -1991,7 +1992,7 @@ static void vGPSInit(void)
             break;
          case SM_GPS_WAIT_ACK_HDOP:
             vNMEA_PMTKGet(&l_sACK);
-            if(l_sACK.u16Type == 356)
+            //if(l_sACK.u16Type == 356)
             {
                l_eIdxState = SM_GPS_CMD_PRIORITY;
             }
@@ -2002,7 +2003,7 @@ static void vGPSInit(void)
             break;
          case SM_GPS_WAIT_ACK_PRIORITY:
             vNMEA_PMTKGet(&l_sACK);
-            if((l_sACK.u16Cmd == 257) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
+            //if((l_sACK.u16Cmd == 257) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
             {
                l_eIdxState = SM_GPS_CMD_CONSTELLATION;
             }
@@ -2013,7 +2014,7 @@ static void vGPSInit(void)
             break;
          case SM_GPS_WAIT_ACK_CONSTELLATION:
             vNMEA_PMTKGet(&l_sACK);
-            if((l_sACK.u16Cmd == 353) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
+            //if((l_sACK.u16Cmd == 353) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
             {
                l_eIdxState = SM_GPS_CMD_SENTENCE;
             }
@@ -2024,7 +2025,7 @@ static void vGPSInit(void)
             break;
          case SM_GPS_WAIT_ACK_SENTENCE:
             vNMEA_PMTKGet(&l_sACK);
-            if((l_sACK.u16Cmd == 314) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
+            //if((l_sACK.u16Cmd == 314) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
             {
                l_eIdxState = SM_GPS_CMD_STATIC_NAV;
             }
@@ -2035,7 +2036,7 @@ static void vGPSInit(void)
             break;
          case SM_GPS_WAIT_ACK_STATIC_NAV:
             vNMEA_PMTKGet(&l_sACK);
-            if((l_sACK.u16Cmd == 386) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
+            //if((l_sACK.u16Cmd == 386) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
             {
                l_eIdxState = SM_GPS_FINISHED;
 //               eUartMngt_StateSet(USM_IDLE);
@@ -2567,6 +2568,12 @@ static void vCfgORG(uint8_t * p_pu8Arg, uint8_t p_u8Size)
             break;
          case 'u':
             eUartMngt_StateSet(USM_IDLE);
+            break;
+         case 'b':
+            vHal_GPIO_Clear(GPS_RST);  
+            break;
+         case 'c':
+            vHal_GPIO_Set(GPS_RST);  
             break;
          default:
             break;

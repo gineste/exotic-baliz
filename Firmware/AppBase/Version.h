@@ -21,12 +21,12 @@
 /************************************************************************
  * Defines
  ************************************************************************/
-#define FW_VERSION   "1.0.7"
+#define FW_VERSION   "1.0.8"
 #define HW_VERSION   "2.11.0"
 
 #define FW_VERSION_MAJOR	   ((uint8_t)1)
 #define FW_VERSION_MINOR	   ((uint8_t)0)
-#define FW_VERSION_REVISION   ((uint8_t)7)
+#define FW_VERSION_REVISION   ((uint8_t)8)
 
 #define HW_VERSION_MAJOR	   ((uint8_t)2u)
 #define HW_VERSION_MINOR	   ((uint8_t)11u)

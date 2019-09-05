@@ -72,7 +72,7 @@ void vORG1510_Init(s_ORG1510_Context_t p_sContext)
       && (p_sContext.fp_vGPIO_Clear_t != NULL) )
    {
       g_sORG1510Context = p_sContext;
-
+   // Test for ORG1510 MK05
       (*g_sORG1510Context.fp_vGPIO_Set_t)(g_sORG1510Context.u32IO_RESET);
       (*g_sORG1510Context.fp_vGPIO_Clear_t)(g_sORG1510Context.u32IO_ForceON);
 
