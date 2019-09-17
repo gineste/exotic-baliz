@@ -62,6 +62,7 @@ void vORG1510_WakeUp(e_ORG1510_WakeUpMode_t p_eWakeUpMode);
 void vORG1510_Shutdown(void);
 void vORG1510_OnePPS(uint8_t p_u8Enable);
 void vORG1510_SBAS(uint8_t p_u8Activate);
+void vORG1510_SetDGPS(uint8_t p_u8SrcMode);
 void vORG1510_Constellation(uint8_t p_u8GPS, uint8_t p_u8Glonass, uint8_t p_u8Galileo, uint8_t p_u8Beidou);
 void vORG1510_Version(void);
 void vORG1510_StaticNav(uint8_t p_u8Threshold);

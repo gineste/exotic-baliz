@@ -170,6 +170,41 @@ void vORG1510_SBAS(uint8_t p_u8Activate)
       (*g_sORG1510Context.fp_vTimerDelay_ms_t)(RESPONSE_DELAY_MS);
    }
 }
+/**@brief   Option for DGPS.
+ * @param[in] p_u8SrcMode : 0 No DGPS Source
+ *                          1 RTCM
+ *                          2 WAAS
+ * @return None
+ */
+void vORG1510_SetDGPS(uint8_t p_u8SrcMode)
+{
+   char l_achCmd[20u] = "$PMTK301,";
+   uint8_t l_u8Invalid = 0u;
+   
+   if(g_u8ORG1510Initialized == 1u)
+   {
+      switch(p_u8SrcMode)
+      {
+         case 0:
+            strcat(l_achCmd, "0*2C\r\n\0");
+            break;
+         case 1:
+            strcat(l_achCmd, "1*2D\r\n\0");
+            break;
+         case 2:
+            strcat(l_achCmd, "2*2E\r\n\0");
+            break;
+         default:
+            l_u8Invalid = 1u;
+            break;
+      }
+      if(l_u8Invalid == 0u)
+      {
+         (void)(*g_sORG1510Context.fp_u32UART_Write_t)((uint8_t*)l_achCmd, strlen(l_achCmd));
+         (*g_sORG1510Context.fp_vTimerDelay_ms_t)(RESPONSE_DELAY_MS);
+      }
+   }
+}
 
 /**@brief   Option to set the receiver to search specified satellite systems.
  *          The setting will be available when NVRAM data is valid.

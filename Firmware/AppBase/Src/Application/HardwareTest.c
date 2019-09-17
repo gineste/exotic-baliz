@@ -1993,22 +1993,35 @@ static void vGPSInit(void)
       {
          case SM_GPS_INIT:
             vORG1510_Init(g_sORG1510Context);
+            /* Clear previous PMTK response */
+            vNMEA_PMTKClear();
             eUartMngt_StateSet(USM_GPS);
             l_eIdxState = SM_GPS_USM_GPS;
+            //l_eIdxState = SM_GPS_FINISHED;
             break;
          case SM_GPS_USM_GPS:
             if(eUartMngt_StateGet() == USM_GPS)
             {
-               l_eIdxState = SM_GPS_CMD_GLP;
+               vNMEA_PMTKGet(&l_sACK);
+               if(   (l_sACK.u16Type == 10) 
+                  && (/*(l_sACK.u16Cmd == 1) ||*/ (l_sACK.u16Cmd == 2)) )
+               {
+                  l_eIdxState = SM_GPS_CMD_GLP;
+                  vORG1510_Version();
+               }
             }
             break;
          case SM_GPS_CMD_GLP:
-            vORG1510_GLP(1u);
-            l_eIdxState = SM_GPS_WAIT_ACK_GLP;
+            vNMEA_PMTKGet(&l_sACK);
+            if(l_sACK.u16Type == 705)
+            {
+               vORG1510_GLP(1u);
+               l_eIdxState = SM_GPS_WAIT_ACK_GLP;
+            }
             break;
          case SM_GPS_WAIT_ACK_GLP:
             vNMEA_PMTKGet(&l_sACK);
-            //if((l_sACK.u16Cmd == 262) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
+            if((l_sACK.u16Cmd == 262) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
             {
                l_eIdxState = SM_GPS_CMD_HDOP;
             }
@@ -2019,29 +2032,31 @@ static void vGPSInit(void)
             break;
          case SM_GPS_WAIT_ACK_HDOP:
             vNMEA_PMTKGet(&l_sACK);
-            //if(l_sACK.u16Type == 356)
+            if(l_sACK.u16Type == 356)
             {
                l_eIdxState = SM_GPS_CMD_PRIORITY;
             }
             break;
          case SM_GPS_CMD_PRIORITY:
-            vORG1510_SolutionPriority(0u);
+            vORG1510_SetDGPS(2u);
+            //vORG1510_SolutionPriority(0u);
             l_eIdxState = SM_GPS_WAIT_ACK_PRIORITY;
             break;
          case SM_GPS_WAIT_ACK_PRIORITY:
             vNMEA_PMTKGet(&l_sACK);
             //if((l_sACK.u16Cmd == 257) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
+            if((l_sACK.u16Cmd == 301) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
             {
                l_eIdxState = SM_GPS_CMD_CONSTELLATION;
             }
             break;
          case SM_GPS_CMD_CONSTELLATION:
-            vORG1510_Constellation(1,1,1,0);
+//            vORG1510_Constellation(1,0,0,0);
             l_eIdxState = SM_GPS_WAIT_ACK_CONSTELLATION;
             break;
          case SM_GPS_WAIT_ACK_CONSTELLATION:
             vNMEA_PMTKGet(&l_sACK);
-            //if((l_sACK.u16Cmd == 353) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
+//            if((l_sACK.u16Cmd == 353) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
             {
                l_eIdxState = SM_GPS_CMD_SENTENCE;
             }
@@ -2052,13 +2067,13 @@ static void vGPSInit(void)
             break;
          case SM_GPS_WAIT_ACK_SENTENCE:
             vNMEA_PMTKGet(&l_sACK);
-            //if((l_sACK.u16Cmd == 314) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
+            if((l_sACK.u16Cmd == 314) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
             {
                l_eIdxState = SM_GPS_CMD_STATIC_NAV;
             }
             break;
          case SM_GPS_CMD_STATIC_NAV:
-            vORG1510_StaticNav(10);
+//            vORG1510_StaticNav(10);
             l_eIdxState = SM_GPS_WAIT_ACK_STATIC_NAV;
             break;
          case SM_GPS_WAIT_ACK_STATIC_NAV:

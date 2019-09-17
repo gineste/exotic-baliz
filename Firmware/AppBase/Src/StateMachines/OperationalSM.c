@@ -87,8 +87,7 @@ void vOperational_Process(void)
    uint16_t r = 0u;
    char c = '\0';
    
-   
-   do { 
+   do {
       r = SEGGER_RTT_Read(0u, &c, 1u);
       if (r == 1) 
       {

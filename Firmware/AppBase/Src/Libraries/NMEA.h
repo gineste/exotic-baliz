@@ -148,6 +148,7 @@ void vNMEA_LastGSVFrameGet(uint8_t * p_pau8FrameOne, uint8_t * p_pu8SizeOne,
 void vNMEA_LastDecodedGSVGet(s_NMEA_GSV_t * p_psGSV);
 
 void vNMEA_PMTKGet(s_NMEA_PMTK_t * p_psPMTK);
+void vNMEA_PMTKClear(void);
 
 void vNMEA_IsFixed(uint8_t * p_pu8IsFixed);
 void vNMEA_FixReset(void);

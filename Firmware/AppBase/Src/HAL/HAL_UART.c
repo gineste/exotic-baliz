@@ -138,6 +138,8 @@ uint32_t u32Hal_UART_Write(const uint8_t * p_cu8DataBuffer, uint8_t p_u8DataLen)
    {
    #if (LOG_UART == 1)
       PRINT_UART("%s\n",(char*)p_cu8DataBuffer);
+   #elif (LOG_GPS == 1)
+      PRINT_UART("%s\n",(char*)p_cu8DataBuffer);
    #endif
       
       for(l_u8Size  = 0u; l_u8Size < p_u8DataLen; l_u8Size++)

@@ -443,7 +443,9 @@ void vNMEA_UpdateFrame(uint8_t p_u8Byte)
    static uint8_t l_u8ChecksumRead = 0u;
    static uint8_t l_u8ValidFrame = 0u;
    static uint8_t l_au8NMEABuffer[NMEA_MAX_SIZE] = { 0u };
-   
+#ifdef HARDWARE_TEST
+   static uint8_t l_au8HardwareTestNMEABuffer[NMEA_MAX_SIZE+12] = { '$','R','S','L',',','G','P','S','+','1',',', 0u };
+#endif
 	/* Cursor overflow or beginning of a frame */
 	if(   (l_u8SentenceIdx >= NMEA_MAX_SIZE) 
       || (p_u8Byte == NMEA_CHAR_SOF_DOLLAR) )
@@ -493,8 +495,13 @@ void vNMEA_UpdateFrame(uint8_t p_u8Byte)
       && (p_u8Byte == NMEA_CHAR_EOF_LF) )
    {
       strcpy((char*)g_au8NMEABuffer, (char*)l_au8NMEABuffer);
+            
+   #ifdef HARDWARE_TEST
+      strcpy((char*)&l_au8HardwareTestNMEABuffer[11u], (char*)l_au8NMEABuffer);
       
-   #if (LOG_GPS == 1)
+      l_au8HardwareTestNMEABuffer[l_u8SentenceIdx+11u] = '\0';
+      PRINT_UART("%s",l_au8HardwareTestNMEABuffer);
+   #elif (LOG_GPS == 1)
       l_au8NMEABuffer[l_u8SentenceIdx] = '\0';
       PRINT_UART("%s",l_au8NMEABuffer);
    #endif
@@ -694,6 +701,13 @@ void vNMEA_PMTKGet(s_NMEA_PMTK_t * p_psPMTK)
    {
       (*p_psPMTK) = g_sNMEAPMTK;
    }
+}
+
+void vNMEA_PMTKClear(void)
+{
+   g_sNMEAPMTK.eAck = PMTK_ACK_INVALID_PCK;
+   g_sNMEAPMTK.u16Cmd = UINT16_MAX;
+   g_sNMEAPMTK.u16Type = UINT16_MAX;
 }
 
 void vNMEA_IsFixed(uint8_t * p_pu8IsFixed)
