@@ -62,7 +62,7 @@
    /*** define CONFIG_GPIO_AS_PINRESET for next IO if populated*/
    #define BP1				      21u
 
-//   #define BUZZER_PIN		   23u
+   #define BUZZER_PIN		   23u
 
 #elif (BALIZ_V == 3)
    #define GPS_POWER_EN       26u

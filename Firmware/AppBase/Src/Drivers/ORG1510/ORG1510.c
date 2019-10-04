@@ -452,7 +452,7 @@ void vORG1510_SentencesUpdate(uint8_t p_u8GLL, uint8_t p_u8RMC, uint8_t p_u8VTG,
    strcat(l_achCmd, "0,0,0,0,0,0,0,0,0,0,0,");
    sprintf(l_achParam, "%d", p_u8ZDA);
    strcat(l_achCmd, l_achParam);
-   strcat(l_achCmd, "0,0,0");
+   strcat(l_achCmd, ",0,0,0");
 
    /* Compte checksum */
    vChecksumCompute((uint8_t*)l_achCmd, strlen(l_achCmd), l_u8ChecksumAscii, &l_u8Size);

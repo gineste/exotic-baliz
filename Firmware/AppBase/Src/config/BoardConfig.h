@@ -66,9 +66,14 @@
 // <q> ST25DV Present
 // <i> The ST25DV is an EEPROM/NFC. It provides storage support.
 #ifndef EN_ST25DV
-#define EN_ST25DV 0
+#define EN_ST25DV 1
 #endif
 
+// <q> MAX17205 Present
+// <i> The MAX17205 is a gauge sensor. It provides information on battery.
+#ifndef EN_MAX17205
+#define EN_MAX17205 0
+#endif
 #ifndef SENSOR_NUMBER
 #define SENSOR_NUMBER ( EN_LTC2943     +  \
                         EN_VEML6075    +  \

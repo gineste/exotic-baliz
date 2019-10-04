@@ -794,6 +794,7 @@ static void vStartI2CSensorsInitTest(void)
 #if (EN_ST25DV == 1)
    if(eST25DV_ContextSet(g_sST25DVContext) != ST25DV_ERROR_NONE)
    {
+      (void)eST25DV_GPOConfigure(ST25DV_MSK_GPO_ENABLED | ST25DV_MSK_GPO_ON_FIELD_CHANGE);
       PRINT_FAST("$RSL,ISS+0+ST25DV\n");
       return;
    }
@@ -1963,10 +1964,13 @@ static void vHTRTCHandler(void * p_pvContext)
    #else
       #error "Board version not supported!"
    #endif
-}
-
+}  
+#define QUALIF_GPS
 static void vGPSInit(void)
-{
+{      
+#ifndef QUALIF_GPS
+   static uint8_t l_u8FirstInit = 1u;
+#endif
       enum {
       SM_GPS_INIT = 0u,
       SM_GPS_USM_GPS,
@@ -1996,8 +2000,19 @@ static void vGPSInit(void)
             /* Clear previous PMTK response */
             vNMEA_PMTKClear();
             eUartMngt_StateSet(USM_GPS);
+      #ifdef QUALIF_GPS
+         l_eIdxState = SM_GPS_FINISHED;
+      #else
+         if(l_u8FirstInit == 1u)
+         {
             l_eIdxState = SM_GPS_USM_GPS;
-            //l_eIdxState = SM_GPS_FINISHED;
+            l_u8FirstInit = 0u;
+         }
+         else
+         {
+            l_eIdxState = SM_GPS_FINISHED;
+         }
+      #endif
             break;
          case SM_GPS_USM_GPS:
             if(eUartMngt_StateGet() == USM_GPS)
@@ -2038,32 +2053,42 @@ static void vGPSInit(void)
             }
             break;
          case SM_GPS_CMD_PRIORITY:
-            vORG1510_SetDGPS(2u);
-            //vORG1510_SolutionPriority(0u);
+            //vORG1510_SetDGPS(2u);
+            vORG1510_SolutionPriority(0u);
             l_eIdxState = SM_GPS_WAIT_ACK_PRIORITY;
             break;
          case SM_GPS_WAIT_ACK_PRIORITY:
             vNMEA_PMTKGet(&l_sACK);
-            //if((l_sACK.u16Cmd == 257) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
-            if((l_sACK.u16Cmd == 301) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
+            //if((l_sACK.u16Cmd == 301) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
+            if((l_sACK.u16Cmd == 257) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
             {
                l_eIdxState = SM_GPS_CMD_CONSTELLATION;
             }
             break;
          case SM_GPS_CMD_CONSTELLATION:
-//            vORG1510_Constellation(1,0,0,0);
-            l_eIdxState = SM_GPS_WAIT_ACK_CONSTELLATION;
+//            vNMEA_PMTKGet(&l_sACK);
+//            
+//            if( (l_sACK.u16Type == 10) && (l_sACK.u16Cmd == 2) )
+            {
+               vORG1510_Constellation(1,0,1,0);
+               l_eIdxState = SM_GPS_WAIT_ACK_CONSTELLATION;
+            }
             break;
          case SM_GPS_WAIT_ACK_CONSTELLATION:
             vNMEA_PMTKGet(&l_sACK);
-//            if((l_sACK.u16Cmd == 353) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
+            if((l_sACK.u16Cmd == 353) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
             {
                l_eIdxState = SM_GPS_CMD_SENTENCE;
             }
             break;
          case SM_GPS_CMD_SENTENCE:
-            vORG1510_SentencesUpdate(0,1,0,0,0,0,60);
-            l_eIdxState = SM_GPS_WAIT_ACK_SENTENCE;
+//            vNMEA_PMTKGet(&l_sACK);
+//            
+//            if( (l_sACK.u16Type == 10) && (l_sACK.u16Cmd == 2) )
+            {
+               vORG1510_SentencesUpdate(0,1,0,0,0,0,0);
+               l_eIdxState = SM_GPS_WAIT_ACK_SENTENCE;
+            }
             break;
          case SM_GPS_WAIT_ACK_SENTENCE:
             vNMEA_PMTKGet(&l_sACK);
@@ -2073,12 +2098,12 @@ static void vGPSInit(void)
             }
             break;
          case SM_GPS_CMD_STATIC_NAV:
-//            vORG1510_StaticNav(10);
+            vORG1510_StaticNav(10);
             l_eIdxState = SM_GPS_WAIT_ACK_STATIC_NAV;
             break;
          case SM_GPS_WAIT_ACK_STATIC_NAV:
             vNMEA_PMTKGet(&l_sACK);
-            //if((l_sACK.u16Cmd == 386) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
+            if((l_sACK.u16Cmd == 386) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
             {
                l_eIdxState = SM_GPS_FINISHED;
 //               eUartMngt_StateSet(USM_IDLE);
