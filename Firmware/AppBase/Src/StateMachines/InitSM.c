@@ -39,6 +39,7 @@
 /* Application includes */
 #include "SigFox.h"
 //#include "SensorManager.h"
+#include "InterruptManager.h"
 #include "HardwareTest.h"
 
 /* Self include + State Machines */
@@ -77,9 +78,13 @@ void vInit_Entry(void)
    /* BLE (ESI, BT_Itf, BLE_Application */
 //   vBT_ITF_Init();	
       
+   if(eIntMngr_Init() != INT_MNG_ERROR_NONE)
+   {
+      g_u8Error = 1u;
+   }
+   
    /* HT timer */
    vHT_Init();
-   
    g_u8IsInitialized = 0u;
 }
 

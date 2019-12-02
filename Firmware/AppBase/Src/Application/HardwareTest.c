@@ -28,16 +28,21 @@
 #include <nrf_sdm.h>
 #include "app_error.h"
 
+/* Config Include */
 #include "BoardConfig.h"
+#include "GlobalDefs.h"
 
+/* HAL Include */
 #include "HAL/HAL_GPIO.h"
 #include "HAL/HAL_I2C.h"
 #include "HAL/HAL_SPI.h"
 #include "HAL/HAL_RTC.h"
 #include "HAL/HAL_Timer.h"
 
+/* BLE Include */
 #include "BLE/BLE_Application.h"
 
+/* Drivers Include */
 #include "ADXL362/ADXL362.h"
 #include "BME280/BME280.h"
 #include "ORG1510/ORG1510.h"
@@ -49,20 +54,24 @@
 #include "LTC2943/LTC2943.h"
 #include "AxSigFox/AxSigFox.h"
 
+/* Lib Include */
 #include <nrf_delay.h>
 #include "Libraries/AT.h"
 #include "Libraries/SimpleLED.h"
 #include "Libraries/Buzzer.h"
 #include "Libraries/FlashMemory.h"
 #include "Libraries/NMEA.h"
+
+/* App Include */
 #include "SigFox.h"
-#include "SEGGER_RTT.h"
 #include "UartManagement.h"
-#include "radio_config.h"
 #include "InterruptManager.h"
 
+#include "SEGGER_RTT.h"
+/* Retarget printf and scanf */
+#define printf(...)           SEGGER_RTT_printf(0, __VA_ARGS__)
+#define scanf(str , pVal)     __segger_scanf(str, pVal)
 
-#include "GlobalDefs.h"
 
 #include "MainStateMachine.h"
 /* Self include */
@@ -83,6 +92,30 @@
 #define RTC_TIMER_TIMEOUT_MS        1u
 #define INT_SENSOR_UPDATE           100u
 
+#define DELAY_WAKEUP_SENSOR         10u
+
+
+#define HT_FLAG_SELFTEST_ADXL    0x0001
+#define HT_FLAG_SELFTEST_LSM6    0x0002
+#define HT_FLAG_SELFTEST_LIS2    0x0004
+
+#define HT_FLAG_INT1_ADXL        0x0010
+#define HT_FLAG_INT2_ADXL        0x0020
+#define HT_FLAG_INT1_LSM6        0x0040
+#define HT_FLAG_INT2_LSM6        0x0080
+#define HT_FLAG_INT1_LIS2        0x0100
+#define HT_FLAG_INT2_LIS2        0x0200
+
+#define HT_SET_FLAG(flag)     do {              \
+            g_u32Flags |= (flag);               \
+         }while(0);
+
+#define HT_CLEAR_FLAG(flag)   do {              \
+            g_u32Flags &= ~(flag);              \
+         }while(0);
+
+#define HT_CHECK_FLAG(flag)   ((g_u32Flags & (flag)) == (flag))?1u:0u
+         
 /****************************************************************************************
  * Private type declarations
  ****************************************************************************************/
@@ -106,6 +139,7 @@ typedef enum _HARDWARE_TEST_CMD_ {
    HT_CMD_INT,
    HT_CMD_LPM,
    HT_CMD_BTL,
+   HT_CMD_SFT,
    HT_CMD_HLP,
    HT_CMD_RST,
    HT_CMD_LAST,
@@ -119,9 +153,10 @@ static void vHT_NewTestProcess(e_HT_Commands_t p_eCmd, uint8_t * p_au8Arg, uint8
 
 static void vStartMACGet(void);
 static void vStartLEDTest(void);
+#if (BALIZ_V < 3)
 static void vStartBuzzerTest(void);
+#endif
 static void vStartSPITest(void);
-static void vStartADXLTest(void);
 static void vInitI2CTest(void);
 static void vStartI2CSensorInitTest(uint8_t * p_pu8Arg, uint8_t p_u8Size);
 static void vStartI2CSensorsInitTest(void);
@@ -158,6 +193,29 @@ static void vCfgLIS(uint8_t * p_pu8Arg, uint8_t p_u8Size);
 static void vCfgLSM(uint8_t * p_pu8Arg, uint8_t p_u8Size);
 static void vCfgORG(uint8_t * p_pu8Arg, uint8_t p_u8Size);
 
+static inline void __segger_scanf(const char * format, void * pVal)
+{
+   uint16_t r = 0u;
+   char c = '\0';
+   char str[64] = { '\0'} ;
+   uint8_t i = 0u; 
+   do {
+      r = SEGGER_RTT_Read(0u, &c, 1u);
+      if ((r == 1)/* && (c != '\n')*/)
+      {
+         str[i++] = c;
+      }
+   } while( ((c != '\n') && (c != '\0')) || (r == 0) );
+   sscanf((char*)str, format, pVal); 
+}
+
+void vStartSelfTest(uint8_t * p_pu8Arg, uint8_t p_u8Size);
+
+static void vStartADXLSelfTest(void);
+static void vADXLSelfTestIntHandler(uint32_t p_u32IntPin, e_IntMng_PolarityDetection_t p_ePolarity);
+static void vStartLIS2SelfTest(void);
+static void vStartLSM6SelfTest(void);
+
 /****************************************************************************************
  * Variable declarations
  ****************************************************************************************/
@@ -181,22 +239,22 @@ static void vCfgORG(uint8_t * p_pu8Arg, uint8_t p_u8Size);
       .fp_u32SPITransfer = &u32Hal_SPI_Transfer,   /* Function pointer to a SPI transfer */
       .fp_vDelay_ms = &vHal_Timer_DelayMs,         /* Function pointer to a timer in ms */
       
-      .eRange = ADXL362_RANGE_2G,                  /* Range of accelerometer */
-      .eOutputDataRate = ADXL362_ODR_12_5_HZ,       /* Output Data Rate */
+      .eRange = ADXL362_RANGE_8G,                  /* Range of accelerometer */
+      .eOutputDataRate = ADXL362_ODR_100_HZ,       /* Output Data Rate */
       .eLinkLoopMode = ADXL362_MODE_LOOP,          /* Functioning mode (Link/Loop) */
       .eNoiseCtrl = ADXL362_NOISE_MODE_NORMAL,     /* Noise control (Normal, Low, Ultra Low) */
       
       .u8ActivityDetection = 1u,			/* 0 - no activity detection, 1 - activity detection */
       .u8RefOrAbsActivity = 1u, 			/* 0 - absolute mode, 1 - referenced mode. */
       .u16ThresholdActivity = 250,   /* 11-bit unsigned value that the adxl362 samples are compared to. */
-      .u16TimeActivity = 250u,			/* 16-bit value activity time in ms (from 2.5ms @ odr = 400Hz to 20s @ odr = 12.5Hz) */
+      .u16TimeActivity = 1u,			/* 16-bit value activity time in ms (from 2.5ms @ odr = 400Hz to 20s @ odr = 12.5Hz) */
       
       .u8InactivityDetection = 1u,		/* 0 - no activity detection, 1 - activity detection */
       .u8RefOrAbsInactivity = 1u,		/* 0 - absolute mode, 1 - referenced mode. */
       .u16ThresholdInactivity = 400, /* 11-bit unsigned value that the ADXL362 samples are compared to. */
-      .u32TimeInactivity = 1000u,  		/* 16-bit value inactivity time in ms (from 164s @ odr = 400Hz to 87min @ odr = 12.5Hz) */
+      .u32TimeInactivity = 1u,  		/* 16-bit value inactivity time in ms (from 164s @ odr = 400Hz to 87min @ odr = 12.5Hz) */
                                         
-      .eInt1Map = ADXL362_INTMAPX_OFF,  /* Type of the interrupt n°1 */
+      .eInt1Map = ADXL362_INTMAPX_AWAKE,  /* Type of the interrupt n°1 */
       .eInt2Map = ADXL362_INTMAPX_AWAKE,    /* Type of the interrupt n°2 */
 //      .u32Int1Pin = 0xFF, 
 //      .u32Int2Pin = ADXL_INT2,
@@ -333,43 +391,45 @@ const char g_cachCmd[HT_CMD_LAST][CMD_FRAME_SIZE+1u] = {
    "INT\0",
    "LPM\0",
    "BTL\0",
+   "SFT\0",
    "HLP\0",
    "RST\0",
 };
 
+static uint32_t g_u32Flags = 0u;
 /****************************************************************************************
  * Public functions
  ****************************************************************************************/ 
 void vHT_PrintHelp(void)
 {
-   PRINT_FAST("\n**********************************\n");
-   PRINT_FAST("*              Help              *\n");
-   PRINT_FAST("**********************************\n");
-   PRINT_FAST("Commands start with $CHK,XXX e.g. : $CHK,BLE\\n \n");
-   PRINT_FAST("Acknowledges start with $ACK,XXX+Y i.e. : $ACK,BLE+0\\n \n");
-   PRINT_FAST("Results start with $RSL,XXX+Y(+Z..Z) i.e. : $RSL,ISS+1+BME280\\n \n");
-   PRINT_FAST("\nCommands List :\n");
-   PRINT_FAST("MAC: Get BLE MAC Address\n");
-   PRINT_FAST("BLE: Start/Stop Radio BLE(Scope)\n");
-   PRINT_FAST("SWP: Sweep BLE Radio Channel(Scope)\n");
-   PRINT_FAST("CSF: Check Comm UART SigFox (Blocking Test)\n");
-   PRINT_FAST("SFC: Check Radio Tx SigFox 868MHz 14dBm(Scope)\n");
-   PRINT_FAST("GPS: Start/Stop GPS\n");
-   PRINT_FAST("RTC: Start/Stop Timer RTC\n");
-   PRINT_FAST("CFG: Configure Sensors\n");
-   PRINT_FAST("SPI: Check SPI ADXL362\n");
-   PRINT_FAST("RAX: Read SPI ADXL362\n");
-   PRINT_FAST("I2C: Init I2C Layer\n");
-   PRINT_FAST("ISS: Init All I2C Sensors\n");
-   PRINT_FAST("RSS: Read All I2C Sensors\n");   
-   PRINT_FAST("LED: Check LED (Visual)\n");
-   PRINT_FAST("BUZ: Check Buzzer (Audio)\n");
-   PRINT_FAST("NFC: Write Data on \n");
-   PRINT_FAST("INT: Initialize/Clear Interrupt\n");
-   PRINT_FAST("LPM: Lowest Power Mode Set\n");
-   PRINT_FAST("BTL: Put Device in Bootloader for Firmware Update\n");
-   PRINT_FAST("HLP: Print Help\n");
-   PRINT_FAST("RST: RESET\n");
+   printf("\n**********************************\n");
+   printf("*              Help              *\n");
+   printf("**********************************\n");
+   printf("Commands start with $CHK,XXX e.g. : $CHK,BLE\\n \n");
+   printf("Acknowledges start with $ACK,XXX+Y i.e. : $ACK,BLE+0\\n \n");
+   printf("Results start with $RSL,XXX+Y(+Z..Z) i.e. : $RSL,ISS+1+BME280\\n \n");
+   printf("\nCommands List :\n");
+   printf("MAC: Get BLE MAC Address\n");
+   printf("BLE: Start/Stop Radio BLE(Scope)\n");
+   printf("SWP: Sweep BLE Radio Channel(Scope)\n");
+   printf("CSF: Check Comm UART SigFox (Blocking Test)\n");
+   printf("SFC: Check Radio Tx SigFox 868MHz 14dBm(Scope)\n");
+   printf("GPS: Start/Stop GPS\n");
+   printf("RTC: Start/Stop Timer RTC\n");
+   printf("CFG: Configure Sensors\n");
+   printf("SPI: Check SPI ADXL362\n");
+   printf("RAX: Read SPI ADXL362\n");
+   printf("I2C: Init I2C Layer\n");
+   printf("ISS: Init All I2C Sensors\n");
+   printf("RSS: Read All I2C Sensors\n");   
+   printf("LED: Check LED (Visual)\n");
+   printf("BUZ: Check Buzzer (Audio)\n");
+   printf("NFC: Write Data on \n");
+   printf("INT: Initialize/Clear Interrupt\n");
+   printf("LPM: Lowest Power Mode Set\n");
+   printf("BTL: Put Device in Bootloader for Firmware Update\n");
+   printf("HLP: Print Help\n");
+   printf("RST: RESET\n");
 }
 
 void vHT_Init(void)
@@ -411,8 +471,45 @@ void vHT_CheckInput(uint8_t * p_au8Frame, uint8_t p_u8Size)
    }
 }
 
+
+void vHT_Scanf(const char * p_pcchFormat, void * p_pvValue)
+{
+   scanf(p_pcchFormat, p_pvValue);
+}
+
 void vHT_BackgroundProcess(void)
 {
+   if(HT_CHECK_FLAG(HT_FLAG_SELFTEST_ADXL))
+   {
+      if(HT_CHECK_FLAG(HT_FLAG_INT1_ADXL) && HT_CHECK_FLAG(HT_FLAG_INT2_ADXL))
+      {
+         HT_CLEAR_FLAG(HT_FLAG_INT1_ADXL);
+         HT_CLEAR_FLAG(HT_FLAG_INT2_ADXL);
+         HT_CLEAR_FLAG(HT_FLAG_SELFTEST_ADXL);
+         printf("$RSL,SFT+ADXL+1\n");
+         (void)eIntMngr_Delete(ADXL_INT1);
+         (void)eIntMngr_Delete(ADXL_INT2);
+         vHal_GPIO_Clear(ADXL_POWER_EN);
+      }
+   }
+   else if(HT_CHECK_FLAG(HT_FLAG_SELFTEST_LSM6))
+   {
+      //if(HT_CHECK_FLAG(HT_FLAG_INT1_LSM6) && HT_CHECK_FLAG(HT_FLAG_INT2_LSM6))
+      {
+         HT_CLEAR_FLAG(HT_FLAG_INT1_LSM6);
+         HT_CLEAR_FLAG(HT_FLAG_INT2_LSM6);
+         HT_CLEAR_FLAG(HT_FLAG_SELFTEST_LSM6);
+         printf("$RSL,SFT+LSM6+1\n");
+      }
+   }
+   else if(HT_CHECK_FLAG(HT_FLAG_SELFTEST_LIS2))
+   {
+      HT_CLEAR_FLAG(HT_FLAG_SELFTEST_LIS2);
+   }
+   else
+   {
+   }
+   
    if( (g_u8INTCheck == 1u) && (g_u8UpdateSensor == 1u) )
    {
       if(g_u8I2CInitSensors == 1u)
@@ -464,23 +561,23 @@ static void vHT_NewTestProcess(e_HT_Commands_t p_eCmd, uint8_t * p_au8Arg, uint8
    switch(p_eCmd)
    {
       case HT_CMD_MAC:
-         PRINT_FAST("$ACK,MAC+1\n");
+         printf("$ACK,MAC+1\n");
          vStartMACGet();
          break;
       case HT_CMD_BLE:
-         PRINT_FAST("$ACK,BLE+1\n");
+         printf("$ACK,BLE+1\n");
          (g_u8BLERadioInit == 0u) ? vStartRadioBLETest():vStopRadioBLETest();               
          break;
       case HT_CMD_SWP:
-         PRINT_FAST("$ACK,SWP+1\n");
+         printf("$ACK,SWP+1\n");
          vSweepRadioBLEChTest();
          break;
       case HT_CMD_CSF:
-         PRINT_FAST("$ACK,CSF+1\n");
+         printf("$ACK,CSF+1\n");
          vStartSigFoxInitTest();
          break;
       case HT_CMD_SFC:
-         PRINT_FAST("$ACK,SFC+1\n");
+         printf("$ACK,SFC+1\n");
          if(p_u8Size == 0u)
          {
             (g_u8SigFoxCWTest == 0u) ? vStartSigFoxCWTest():vStopSigFoxCWTest();
@@ -491,32 +588,31 @@ static void vHT_NewTestProcess(e_HT_Commands_t p_eCmd, uint8_t * p_au8Arg, uint8
          }
          break;
       case HT_CMD_GPS:
-         PRINT_FAST("$ACK,GPS+1\n");          
+         printf("$ACK,GPS+1\n");          
          (g_u8TestInProgress == 0u) ? vStartGPSTest():vStopGPSTest();     
          break;
       case HT_CMD_RTC:
-         PRINT_FAST("$ACK,RTC+1\n");
+         printf("$ACK,RTC+1\n");
          (g_u8RTCCheck == 0u) ? vStartRTCTest():vStopRTCTest();         
          break;
       case HT_CMD_CFG:
          vCfgSensor(p_au8Arg,p_u8Size);
          break;
       case HT_CMD_SPI:
-         PRINT_FAST("$ACK,SPI+1\n");
+         printf("$ACK,SPI+1\n");
          vStartSPITest();
          break;
       case HT_CMD_RAX:
-         PRINT_FAST("$ACK,RAX+1\n");
-         vStartADXLTest();
+         printf("$ACK,RAX+0\n");
          break;
       case HT_CMD_I2C:
-         PRINT_FAST("$ACK,I2C+1\n");
+         printf("$ACK,I2C+1\n");
          vInitI2CTest();
          break;
       case HT_CMD_ISS:
          if(p_u8Size == 0u)
          {
-            PRINT_FAST("$ACK,ISS+1\n");
+            printf("$ACK,ISS+1\n");
             vStartI2CSensorsInitTest();
          }
          else
@@ -527,7 +623,7 @@ static void vHT_NewTestProcess(e_HT_Commands_t p_eCmd, uint8_t * p_au8Arg, uint8
       case HT_CMD_RSS:
          if(p_u8Size == 0u)
          {
-            PRINT_FAST("$ACK,RSS+1\n");
+            printf("$ACK,RSS+1\n");
             vStartI2CSensorsReadTest();
          }
          else
@@ -537,46 +633,53 @@ static void vHT_NewTestProcess(e_HT_Commands_t p_eCmd, uint8_t * p_au8Arg, uint8
          }
          break;
       case HT_CMD_LED:
-         PRINT_FAST("$ACK,LED+1\n");
+         printf("$ACK,LED+1\n");
          vStartLEDTest();
          break;
       case HT_CMD_BUZ:
-         PRINT_FAST("$ACK,BUZ+1\n");
-         vStartBuzzerTest();
+         #if (BALIZ_V < 3)
+            printf("$ACK,BUZ+1\n");
+            vStartBuzzerTest();
+         #else
+            printf("$ACK,BUZ+0\n");
+         #endif
          break;
       case HT_CMD_NFC:
-         PRINT_FAST("$ACK,NFC+1\n");
+         printf("$ACK,NFC+1\n");
          break;
       case HT_CMD_INT:
-         PRINT_FAST("$ACK,INT+1\n");
-         if(g_u8INTCheck == 0u){
-            vIntManagerInit();
-            vINT_Configure();
-            (void)eHal_Timer_Start(g_SensorUpdateIdx, INT_SENSOR_UPDATE);
-            g_u8INTCheck = 1u;
-         }
-         else{
-            vINT_Clear();
-         }
+         printf("$ACK,INT+1\n");
+//         if(g_u8INTCheck == 0u){
+//            vIntManagerInit();
+//            vINT_Configure();
+//            (void)eHal_Timer_Start(g_SensorUpdateIdx, INT_SENSOR_UPDATE);
+//            g_u8INTCheck = 1u;
+//         }
+//         else{
+//            vINT_Clear();
+//         }
          break;
       case HT_CMD_LPM:
-         PRINT_FAST("$ACK,LPM+1\n");
+         printf("$ACK,LPM+1\n");
          vLPMTest();
          break;
       case HT_CMD_BTL:
-         PRINT_FAST("$ACK,DFU+1\n");
+         printf("$ACK,DFU+1\n");
          vBTL_Start();
          break;
+      case HT_CMD_SFT:
+         vStartSelfTest(p_au8Arg, p_u8Size);
+         break;
       case HT_CMD_HLP:
-         PRINT_FAST("$ACK,HLP+1\n");
+         printf("$ACK,HLP+1\n");
          vHT_PrintHelp();
          break;
       case HT_CMD_RST:
-         PRINT_FAST("$ACK,RST+1\n");     
+         printf("$ACK,RST+1\n");     
          NVIC_SystemReset();   
          break;
       default:
-         PRINT_FAST("$ACK,UKN+0\n");
+         printf("$ACK,UKN+0\n");
          break;
    }
 }
@@ -586,7 +689,7 @@ static void vStartMACGet(void)
    uint8_t l_au8Data[6u] = { 0u };
    uint8_t l_u8Size = 0u;
    vBLE_MACAddressGet(l_au8Data, &l_u8Size);
-   PRINT_CUSTOM("$RSL,MAC+1,%02X:%02X:%02X:%02X:%02X:%02X\n",  
+   printf("$RSL,MAC+1,%02X:%02X:%02X:%02X:%02X:%02X\n",  
          l_au8Data[5u],l_au8Data[4u],l_au8Data[3u],l_au8Data[2u],l_au8Data[1u],l_au8Data[0u]);   
 }
 static void vStartLEDTest(void)
@@ -597,25 +700,25 @@ static void vStartLEDTest(void)
       vSimpleLED_ColorSet((e_SimpleLED_Color_t)l_u8Idx);
       nrf_delay_ms(DELAY_LED_SWITCH);      
    }
-   PRINT_FAST("$RSL,LED+?\n");
+   printf("$RSL,LED+?\n");
 }
-
+#if (BALIZ_V < 3)
 static void vStartBuzzerTest(void)
 {
    //vBuzzerSeqCmd();
    vBuzzerStartSequence(1u);
    while(u8BuzzerIsStopped() != 1u);
-   PRINT_FAST("$RSL,BUZ+?\n");
+   printf("$RSL,BUZ+?\n");
 }
+#endif
 
 
 static void vStartSPITest(void)
 {   
    vHal_GPIO_Set(ADXL_POWER_EN);
-   vHal_Timer_DelayMs(10u);
+   vHal_Timer_DelayMs(DELAY_WAKEUP_SENSOR);
    /* Since it's the first process we run, there is no entry point for PowerUp SM */
    /* Module : SPI, I2C, etc. */
-   vHal_I2C_Init();
    s_HalSpi_Context_t l_sSPIContext = {
       .u32MOSIPin = SPI_MOSI,
       .u32MISOPin = SPI_MISO,
@@ -627,40 +730,9 @@ static void vStartSPITest(void)
    
    vHal_SPI_ContextSet(l_sSPIContext);
    vHal_SPI_Init();  
-   PRINT_FAST("$RSL,SPI+1\n");
+   printf("$RSL,SPI+1\n");
 
    g_u8SPIInit = 1u;
-}
-static void vStartADXLTest(void)
-{
-#if (EN_ADXL362 == 1)
-   int16_t l_s16Data[3u] = { 0 };
-   
-   if(eADXL362_ContextSet(g_sADXLContext) == ADXL362_ERROR_NONE)
-   {
-      if(u8ADXL362_IsAvailable() == 0u)
-      {
-         if(eADXL362_Init() != ADXL362_ERROR_NONE)
-         {
-            PRINT_FAST("$RSL,RAX+0\n");
-         }
-      }
-      vHal_Timer_DelayMs(200u);
-      if(u8ADXL362_IsAvailable() == 1u)
-      {
-         if(eADXL362_AccelerationRead() != ADXL362_ERROR_NONE)
-         {
-            PRINT_FAST("$RSL,RAX+0\n");
-         }
-         else
-         {
-            vADXL362_AccelerationGet(&l_s16Data[0u],&l_s16Data[1u],&l_s16Data[2u]);
-            PRINT_CUSTOM("$RSL,RAX+1,%d,%d,%d\n",l_s16Data[0u],l_s16Data[1u],l_s16Data[2u]);
-         }
-      }
-   }
-   
-#endif
 }
 
 static void vInitI2CTest(void)
@@ -674,7 +746,7 @@ static void vInitI2CTest(void)
    vHal_I2C_ContextSet(l_sI2CContext);
    vHal_I2C_Init();
    g_u8I2CInit = 1u;
-   PRINT_FAST("$RSL,I2C+1\n");
+   printf("$RSL,I2C+1\n");
 }
 
 static void vStartI2CSensorsInitTest(void)
@@ -704,12 +776,12 @@ static void vStartI2CSensorsInitTest(void)
    
    if(l_u8Error == 1u)
    {
-      PRINT_FAST("$RSL,ISS+0+BME280\n");
+      printf("$RSL,ISS+0+BME280\n");
       return;
    }
 //   else
 //   {
-//      PRINT_FAST("$RSL,ISS+1+BME280\n");
+//      printf("$RSL,ISS+1+BME280\n");
 //   }
    
 #endif
@@ -727,12 +799,12 @@ static void vStartI2CSensorsInitTest(void)
    
    if(l_u8Error == 1u)
    {
-      PRINT_FAST("$RSL,ISS+0+MAX44009\n");
+      printf("$RSL,ISS+0+MAX44009\n");
       return;
    }
 //   else
 //   {
-//      PRINT_FAST("$RSL,ISS+1+MAX44009\n");
+//      printf("$RSL,ISS+1+MAX44009\n");
 //   }
 #endif
 #if (EN_LSM6DSL == 1)
@@ -752,12 +824,12 @@ static void vStartI2CSensorsInitTest(void)
    
    if(l_u8Error == 1u)
    {
-      PRINT_FAST("$RSL,ISS+0+LSM6DSL\n");
+      printf("$RSL,ISS+0+LSM6DSL\n");
       return;
    }
 //   else
 //   {
-//      PRINT_FAST("$RSL,ISS+1+LSM6DSL\n");
+//      printf("$RSL,ISS+1+LSM6DSL\n");
 //   }
 #endif
 #if (EN_LIS2MDL == 1)
@@ -777,12 +849,12 @@ static void vStartI2CSensorsInitTest(void)
    
    if(l_u8Error == 1u)
    {
-      PRINT_FAST("$RSL,ISS+0+LIS2MDL\n");
+      printf("$RSL,ISS+0+LIS2MDL\n");
       return;
    }
 //   else
 //   {
-//      PRINT_FAST("$RSL,ISS+1+LIS2MDL\n");
+//      printf("$RSL,ISS+1+LIS2MDL\n");
 //   }
    
 #endif
@@ -795,12 +867,12 @@ static void vStartI2CSensorsInitTest(void)
    if(eST25DV_ContextSet(g_sST25DVContext) != ST25DV_ERROR_NONE)
    {
       (void)eST25DV_GPOConfigure(ST25DV_MSK_GPO_ENABLED | ST25DV_MSK_GPO_ON_FIELD_CHANGE);
-      PRINT_FAST("$RSL,ISS+0+ST25DV\n");
+      printf("$RSL,ISS+0+ST25DV\n");
       return;
    }
 //   else
 //   {
-//      PRINT_FAST("$RSL,ISS+0+ST25DV\n");
+//      printf("$RSL,ISS+0+ST25DV\n");
 //   }
 #endif
    
@@ -817,16 +889,16 @@ static void vStartI2CSensorsInitTest(void)
    
    if(l_u8Error == 1u)
    {
-      PRINT_FAST("$RSL,ISS+0+LTC2943\n");
+      printf("$RSL,ISS+0+LTC2943\n");
       return;
    }
 //   else
 //   {
-//      PRINT_FAST("$RSL,ISS+1+LTC2943\n");
+//      printf("$RSL,ISS+1+LTC2943\n");
 //   }
 #endif
    
-   PRINT_FAST("$RSL,ISS+1\n");
+   printf("$RSL,ISS+1\n");
    g_u8I2CInitSensors = 1u;
 }
 
@@ -841,7 +913,7 @@ static void vStartI2CSensorInitTest(uint8_t * p_pu8Arg, uint8_t p_u8Size)
          && (strstr((char*)p_pu8Arg, "ADX") != NULL) )
       {
          l_u8Error = 1u;
-         PRINT_FAST("$ACK,ISS,ADX+1\n");
+         printf("$ACK,ISS,ADX+1\n");
          #if (EN_ADXL362 == 1)
             if(eADXL362_ContextSet(g_sADXLContext) == ADXL362_ERROR_NONE)
             {
@@ -858,19 +930,19 @@ static void vStartI2CSensorInitTest(uint8_t * p_pu8Arg, uint8_t p_u8Size)
             if(l_u8Error == 0u)
             {
                g_u8ADXInit = 1u;
-               PRINT_FAST("$RSL,ISS,ADX+1\n");
+               printf("$RSL,ISS,ADX+1\n");
             }
             else
          #endif
             {
-               PRINT_FAST("$RSL,ISS,ADX+0\n");
+               printf("$RSL,ISS,ADX+0\n");
             }
       }
       else if(g_u8I2CInit == 1u)
       {
          if(strstr((char*)p_pu8Arg, "BME") != NULL)
          {
-            PRINT_FAST("$ACK,ISS,BME+1\n");
+            printf("$ACK,ISS,BME+1\n");
          #if (EN_BME280 == 1) 
             l_u8Error = 1u;
             if(eBME280_ContextSet(g_sBMEContext) == BME280_ERROR_NONE)
@@ -884,17 +956,17 @@ static void vStartI2CSensorInitTest(uint8_t * p_pu8Arg, uint8_t p_u8Size)
             if(l_u8Error == 0u)
             {
                g_u8BMEInit = 1u;
-               PRINT_FAST("$RSL,ISS,BME+1\n");
+               printf("$RSL,ISS,BME+1\n");
             }
             else
          #endif
             {
-               PRINT_FAST("$RSL,ISS,BME+0\n");
+               printf("$RSL,ISS,BME+0\n");
             }
          }
          else if(strstr((char*)p_pu8Arg, "MAX") != NULL)
          {
-            PRINT_FAST("$ACK,ISS,MAX+1\n");
+            printf("$ACK,ISS,MAX+1\n");
          #if (EN_MAX44009 == 1)  
             l_u8Error = 1u;
             // NOTE : No part ID available for MAX44009 just try to write something on it
@@ -910,17 +982,17 @@ static void vStartI2CSensorInitTest(uint8_t * p_pu8Arg, uint8_t p_u8Size)
             if(l_u8Error == 0u)
             {
                g_u8MAXInit = 1u;
-               PRINT_FAST("$RSL,ISS,MAX+1\n");
+               printf("$RSL,ISS,MAX+1\n");
             }
             else
          #endif
             {
-               PRINT_FAST("$RSL,ISS,MAX+0\n");
+               printf("$RSL,ISS,MAX+0\n");
             }
          }
          else if(strstr((char*)p_pu8Arg, "LIS") != NULL)
          {
-            PRINT_FAST("$ACK,ISS,LIS+1\n");
+            printf("$ACK,ISS,LIS+1\n");
          #if (EN_LIS2MDL == 1)
             l_u8Error = 1u;
             l_u8ChipID = 0u;
@@ -935,17 +1007,17 @@ static void vStartI2CSensorInitTest(uint8_t * p_pu8Arg, uint8_t p_u8Size)
             if(l_u8Error == 0u)
             {
                g_u8LISInit = 1u;
-               PRINT_FAST("$RSL,ISS,LIS+1\n");
+               printf("$RSL,ISS,LIS+1\n");
             }
             else
          #endif
             {
-               PRINT_FAST("$RSL,ISS,LIS+0\n");
+               printf("$RSL,ISS,LIS+0\n");
             }
          }
          else if(strstr((char*)p_pu8Arg, "LSM") != NULL)
          {
-            PRINT_FAST("$ACK,ISS,LSM+1\n");
+            printf("$ACK,ISS,LSM+1\n");
          #if (EN_LSM6DSL == 1)
             l_u8Error = 1u;
             l_u8ChipID = 0u;
@@ -960,17 +1032,17 @@ static void vStartI2CSensorInitTest(uint8_t * p_pu8Arg, uint8_t p_u8Size)
             if(l_u8Error == 0u)
             {
                g_u8LSMInit = 1u;
-               PRINT_FAST("$RSL,ISS,LSM+1\n");
+               printf("$RSL,ISS,LSM+1\n");
             }
             else
          #endif
             {
-               PRINT_FAST("$RSL,ISS,LSM+0\n");
+               printf("$RSL,ISS,LSM+0\n");
             }
          }
          else if(strstr((char*)p_pu8Arg, "LTC") != NULL)
          {         
-            PRINT_FAST("$ACK,ISS,LTC+1\n");
+            printf("$ACK,ISS,LTC+1\n");
          #if (EN_LTC2943 == 1)
             l_u8Error = 1u;
             if(eLTC2943_ContextSet(g_sLTCContext) == LTC2943_ERROR_NONE)
@@ -984,27 +1056,27 @@ static void vStartI2CSensorInitTest(uint8_t * p_pu8Arg, uint8_t p_u8Size)
             if(l_u8Error == 0u)
             {
                g_u8LTCInit = 1u;
-               PRINT_FAST("$RSL,ISS,LTC+1\n");
+               printf("$RSL,ISS,LTC+1\n");
             }
             else
          #endif
             {
-               PRINT_FAST("$RSL,ISS,LTC+0\n");
+               printf("$RSL,ISS,LTC+0\n");
             }
          }
          else
          {
-            PRINT_FAST("$ACK,ISS+0\n");
+            printf("$ACK,ISS+0\n");
          }
       }
       else
       {
-         PRINT_FAST("$ACK,ISS+0\n");
+         printf("$ACK,ISS+0\n");
       }
    }
    else
    {
-      PRINT_FAST("$ACK,ISS+0\n");
+      printf("$ACK,ISS+0\n");
    }
 }
 
@@ -1027,7 +1099,7 @@ static void vStartI2CSensorsReadTest(void)
          l_u8Error = u8BME_SingleShotRead(&l_fT, &l_fP, &l_fH);
          if(l_u8Error == 1)
          {
-            PRINT_FAST("$RSL,RSS+0+BME280\n");
+            printf("$RSL,RSS+0+BME280\n");
             return;
          }
          else
@@ -1056,12 +1128,12 @@ static void vStartI2CSensorsReadTest(void)
          }
          if(l_u8Error == 1u)
          {
-            PRINT_FAST("$RSL,RSS+0+MAX44009\n");
+            printf("$RSL,RSS+0+MAX44009\n");
             return;
          }
 //         else
 //         {
-//            PRINT_FAST("$RSL,RSS+1+MAX44009\n");
+//            printf("$RSL,RSS+1+MAX44009\n");
 //         }
       #endif
       
@@ -1104,12 +1176,12 @@ static void vStartI2CSensorsReadTest(void)
          
          if(l_u8Error == 1u)
          {
-            PRINT_FAST("$RSL,RSS+0+LSM6DSL\n");
+            printf("$RSL,RSS+0+LSM6DSL\n");
             return;
          }
 //         else
 //         {
-//            PRINT_FAST("$RSL,RSS+1+LSM6DSL\n");
+//            printf("$RSL,RSS+1+LSM6DSL\n");
 //         }
       #endif
       
@@ -1140,12 +1212,12 @@ static void vStartI2CSensorsReadTest(void)
 //         }
          if(l_u8Error == 1u)
          {
-            PRINT_FAST("$RSL,RSS+0+LIS2MDL\n");
+            printf("$RSL,RSS+0+LIS2MDL\n");
             return;
          }
 //         else
 //         {
-//            PRINT_FAST("$RSL,RSS+1+LIS2MDL\n");
+//            printf("$RSL,RSS+1+LIS2MDL\n");
 //         }
       #endif
       
@@ -1214,20 +1286,20 @@ static void vStartI2CSensorsReadTest(void)
          }
          if(l_u8Error != 0u)
          {
-            PRINT_FAST("$RSL,RSS+0+LTC2943\n");
+            printf("$RSL,RSS+0+LTC2943\n");
             return;
          }
 //         else
 //         {
-//            PRINT_FAST("$RSL,RSS+1+LTC2943\n");
+//            printf("$RSL,RSS+1+LTC2943\n");
 //         }
       #endif
      
-   PRINT_CUSTOM("%s\n",l_achDataResult);
+   printf("%s\n",l_achDataResult);
    }
    else
    {
-      PRINT_FAST("$RSL,RSS+0\n");
+      printf("$RSL,RSS+0\n");
       return;
    }  
 }
@@ -1245,7 +1317,7 @@ static void vStartSensorReadTest(uint8_t * p_pu8Arg, uint8_t p_u8Size)
    {
       if(strstr((char*)p_pu8Arg, "BME") != NULL)
       {
-         PRINT_FAST("$ACK,RSS,BME+1\n");
+         printf("$ACK,RSS,BME+1\n");
          l_u8Error = 1u;
          if(g_u8BMEInit == 1u)
          {
@@ -1263,22 +1335,22 @@ static void vStartSensorReadTest(uint8_t * p_pu8Arg, uint8_t p_u8Size)
                strcat(l_achDataResult, l_achData);         
                sprintf(l_achData, ",%.2f", l_fH);
                strcat(l_achDataResult, l_achData); 
-               PRINT_CUSTOM("%s\n",l_achDataResult); 
+               printf("%s\n",l_achDataResult); 
             }
             else
          #endif
             {
-               PRINT_FAST("$RSL,RSS,BME+0\n");
+               printf("$RSL,RSS,BME+0\n");
             }
          }
          else
          {
-            PRINT_FAST("$RSL,RSS,BME+0,ISS\n");
+            printf("$RSL,RSS,BME+0,ISS\n");
          }
       }
       else if(strstr((char*)p_pu8Arg, "MAX") != NULL)
       {
-         PRINT_FAST("$ACK,RSS,MAX+1\n");
+         printf("$ACK,RSS,MAX+1\n");
          l_u8Error = 1u;
          if(g_u8MAXInit == 1u)
          {
@@ -1297,22 +1369,22 @@ static void vStartSensorReadTest(uint8_t * p_pu8Arg, uint8_t p_u8Size)
                strcat(l_achDataResult, "$RSL,RSS,MAX+1");
                sprintf(l_achData, ",%d", l_u32Brightness);
                strcat(l_achDataResult, l_achData);
-               PRINT_CUSTOM("%s\n",l_achDataResult);
+               printf("%s\n",l_achDataResult);
             }
             else
          #endif
             {
-               PRINT_FAST("$RSL,RSS,MAX+0\n");
+               printf("$RSL,RSS,MAX+0\n");
             }
          }
          else
          {
-            PRINT_FAST("$RSL,RSS,MAX+0,ISS\n");
+            printf("$RSL,RSS,MAX+0,ISS\n");
          }
       }
       else if(strstr((char*)p_pu8Arg, "LIS") != NULL)
       {
-         PRINT_FAST("$ACK,RSS,LIS+1\n");
+         printf("$ACK,RSS,LIS+1\n");
          l_u8Error = 1u;
          if(g_u8LISInit == 1u)
          {
@@ -1337,22 +1409,22 @@ static void vStartSensorReadTest(uint8_t * p_pu8Arg, uint8_t p_u8Size)
             if(l_u8Error == 0u)
             {
                (void)eLIS2MDL_OutputDataRateSet(LIS2MDL_ODR_10Hz);
-               PRINT_CUSTOM("%s\n",l_achDataResult);
+               printf("%s\n",l_achDataResult);
             }
             else
          #endif
             {
-               PRINT_FAST("$RSL,RSS,LIS+0\n");
+               printf("$RSL,RSS,LIS+0\n");
             }
          }
          else
          {
-            PRINT_FAST("$RSL,RSS,LIS+0,ISS\n");
+            printf("$RSL,RSS,LIS+0,ISS\n");
          }
       }
       else if(strstr((char*)p_pu8Arg, "LSM") != NULL)
       {
-         PRINT_FAST("$ACK,RSS,LSM+1\n");
+         printf("$ACK,RSS,LSM+1\n");
          l_u8Error = 1u;
          if(g_u8LSMInit == 1u)
          {
@@ -1382,22 +1454,22 @@ static void vStartSensorReadTest(uint8_t * p_pu8Arg, uint8_t p_u8Size)
             {
                (void)eLSM6DSL_AccelCfgSet(LSM6DSL_ODR_POWER_DOWN, LSM6DSL_ACCEL_RANGE_2G, LSM6DSL_MODE_LOW_POWER);
                (void)eLSM6DSL_GyroCfgSet(LSM6DSL_ODR_POWER_DOWN, LSM6DSL_GYRO_RANGE_250DPS, LSM6DSL_MODE_LOW_POWER);
-               PRINT_CUSTOM("%s\n",l_achDataResult);
+               printf("%s\n",l_achDataResult);
             }
             else
       #endif
             {
-               PRINT_FAST("$RSL,RSS,LSM+0\n");
+               printf("$RSL,RSS,LSM+0\n");
             }
          }
          else
          {
-            PRINT_FAST("$RSL,RSS,LSM+0,ISS\n");
+            printf("$RSL,RSS,LSM+0,ISS\n");
          }
       }
       else if(strstr((char*)p_pu8Arg, "LTC") != NULL)
       {
-         PRINT_FAST("$ACK,ISS,LTC+1\n");
+         printf("$ACK,ISS,LTC+1\n");
          l_u8Error = 1u;
          if(g_u8LTCInit == 1u)
          {
@@ -1423,22 +1495,22 @@ static void vStartSensorReadTest(uint8_t * p_pu8Arg, uint8_t p_u8Size)
             
             if(l_u8Error == 0u)
             {
-               PRINT_CUSTOM("%s\n",l_achDataResult);
+               printf("%s\n",l_achDataResult);
             }
             else
       #endif
             {
-               PRINT_FAST("$RSL,RSS,LTC+0\n");
+               printf("$RSL,RSS,LTC+0\n");
             }
          }
          else
          {
-            PRINT_FAST("$RSL,RSS,LTC+0,ISS\n");
+            printf("$RSL,RSS,LTC+0,ISS\n");
          }
       }
       else if(strstr((char*)p_pu8Arg, "ADX") != NULL)
       {
-         PRINT_FAST("$ACK,RSS,ADX+1\n");
+         printf("$ACK,RSS,ADX+1\n");
          l_u8Error = 1u;
          if(g_u8ADXInit == 1u)
          {
@@ -1447,7 +1519,7 @@ static void vStartSensorReadTest(uint8_t * p_pu8Arg, uint8_t p_u8Size)
             {
                if(eADXL362_Init() != ADXL362_ERROR_NONE)
                {
-                  PRINT_FAST("$RSL,RAX+0\n");
+                  printf("$RSL,RAX+0\n");
                }
             }
             vHal_Timer_DelayMs(200u);            
@@ -1465,22 +1537,22 @@ static void vStartSensorReadTest(uint8_t * p_pu8Arg, uint8_t p_u8Size)
             
             if(l_u8Error == 0u)
             {
-               PRINT_CUSTOM("%s\n",l_achDataResult);
+               printf("%s\n",l_achDataResult);
             }
             else
          #endif
             {
-               PRINT_FAST("$RSL,RSS,ADX+0\n");
+               printf("$RSL,RSS,ADX+0\n");
             }
          }
          else
          {
-            PRINT_FAST("$RSL,RSS,ADX+0,ISS\n");
+            printf("$RSL,RSS,ADX+0,ISS\n");
          }
       }
       else
       {
-         PRINT_FAST("$ACK,RSS+0\n");
+         printf("$ACK,RSS+0\n");
       }
    }
 }
@@ -1602,11 +1674,11 @@ static void vStartSigFoxInitTest(void)
    
    if(l_eIdxState == SM_SIGFOX_FINISHED_OK)
    {
-      PRINT_CUSTOM("%s\n",l_achDataResult);
+      printf("%s\n",l_achDataResult);
    }
    else
    {
-      PRINT_FAST("$RSL,CSF+0\n");
+      printf("$RSL,CSF+0\n");
    }
    
    (void)eHal_Timer_Stop(g_TimeOutTestIdx);
@@ -1625,7 +1697,7 @@ static void vStartSigFoxCWTest(void)
       
       }while(u8AT_PendingCommand() == 1u);
       g_u8SigFoxCWTest = 1u;
-      PRINT_FAST("$RSL,SFC+?\n");
+      printf("$RSL,SFC+?\n");
    }
 }
 static void vSigFoxCWTestCustom(uint8_t * p_pu8Arg, uint8_t p_u8Size)
@@ -1646,12 +1718,12 @@ static void vSigFoxCWTestCustom(uint8_t * p_pu8Arg, uint8_t p_u8Size)
       
       }while(u8AT_PendingCommand() == 1u);
       
-      PRINT_FAST("$RSL,SFC+?\n");
+      printf("$RSL,SFC+?\n");
       g_u8SigFoxCWTest = 1u;
    }
    else
    {
-      PRINT_FAST("$RSL,SFC+0\n");
+      printf("$RSL,SFC+0\n");
    }
 }   
 static void vStopSigFoxCWTest(void)
@@ -1667,7 +1739,7 @@ static void vStopSigFoxCWTest(void)
       
       }while(u8AT_PendingCommand() == 1u);
       g_u8SigFoxCWTest = 0u;
-      PRINT_FAST("$RSL,SFC+1\n");
+      printf("$RSL,SFC+1\n");
    }
 }
 
@@ -1712,7 +1784,7 @@ static void vStartRadioBLETest(void)
 //   PRINT_DEBUG("BLE Radio : Power %d, ",BLE_RADIO_TXPOWER);
 //   PRINT_DEBUG("Mode %d, ",BLE_RADIO_MODE);
 //   PRINT_DEBUG("Channel %d\n",g_u8BLERadioChannel);
-   PRINT_FAST("$RSL,BLE+?\n");
+   printf("$RSL,BLE+?\n");
     
    g_u8BLERadioInit = 1u;
 }
@@ -1735,13 +1807,13 @@ static void vStopRadioBLETest(void)
    {
       (void)nrf_sdh_disable_request();
       (void)nrf_sdh_enable_request();
-//      PRINT_FAST("$RSL,BLE+2\n");      
+//      printf("$RSL,BLE+2\n");      
    }
    else
    {
-//      PRINT_FAST("$RSL,BLE+2\n");
+//      printf("$RSL,BLE+2\n");
    }
-      PRINT_FAST("$RSL,BLE+1\n");      
+      printf("$RSL,BLE+1\n");
 }
 
 
@@ -1767,7 +1839,7 @@ static void vSweepRadioBLEChTest(void)
    NRF_RADIO->TASKS_TXEN = 1;
 
 //   PRINT_DEBUG("BLE Radio Channel %d\n",g_u8BLERadioChannelSweep);
-   PRINT_CUSTOM("$RSL,SWP+?,CH=%d\n",g_u8BLERadioChannelSweep);
+   printf("$RSL,SWP+?,CH=%d\n",g_u8BLERadioChannelSweep);
 }
 
 static void vStartRTCTest(void)
@@ -1777,16 +1849,16 @@ static void vStartRTCTest(void)
       if(eHal_Timer_Start(g_RTCTestIdx, RTC_TIMER_TIMEOUT_MS) == HAL_TIMER_ERROR_NONE)
       {
          g_u8RTCCheck = 1u;
-         PRINT_FAST("$RSL,RTC+1\n");
+         printf("$RSL,RTC+1\n");
       }
       else
       {      
-         PRINT_FAST("$RSL,RTC+0\n");
+         printf("$RSL,RTC+0\n");
       }
    }
    else
    {
-      PRINT_FAST("$RSL,RTC+0\n");
+      printf("$RSL,RTC+0\n");
    }
 }
 static void vStopRTCTest(void)
@@ -1800,11 +1872,11 @@ static void vStopRTCTest(void)
    #else
       #error "Board version not supported!"
    #endif
-      PRINT_FAST("$RSL,RTC+1\n");
+      printf("$RSL,RTC+1\n");
    }
    else
    {      
-      PRINT_FAST("$RSL,RTC+0\n");
+      printf("$RSL,RTC+0\n");
    }
 }
 
@@ -1812,7 +1884,7 @@ static void vLPMTest(void)
 {
    if(g_u8I2CInitSensors == 0u)
    {      
-      PRINT_FAST("$RSL,LPM+0+ISS\n");
+      printf("$RSL,LPM+0+ISS\n");
    }
    else
    {
@@ -1931,7 +2003,7 @@ static void vLPMTest(void)
          vStopRadioBLETest();
       }
       
-      PRINT_FAST("$RSL,LPM+1\n");
+      printf("$RSL,LPM+1\n");
       
       /* Deep Sleep Mode */
       vMSM_StateMachineSet(MSM_DEEP_SLEEP);
@@ -1940,7 +2012,7 @@ static void vLPMTest(void)
 static void vBTL_Start(void)
 {
    NRF_POWER->GPREGRET = 0xB1; 
-   PRINT_FAST("$RSL,BTL+1+CLOSE_VIEWER\n");
+   printf("$RSL,BTL+1+CLOSE_VIEWER\n");
    
    NVIC_SystemReset();
    
@@ -2086,7 +2158,9 @@ static void vGPSInit(void)
 //            
 //            if( (l_sACK.u16Type == 10) && (l_sACK.u16Cmd == 2) )
             {
-               vORG1510_SentencesUpdate(0,1,0,0,0,0,0);
+               vORG1510_SentencesUpdate(  0,1,0,0,
+                                          0,0,0,0,
+                                          0,0,0,0);
                l_eIdxState = SM_GPS_WAIT_ACK_SENTENCE;
             }
             break;
@@ -2361,25 +2435,25 @@ static void vCfgSensor(uint8_t * p_pu8Arg, uint8_t p_u8Size)
       {
          if(strstr((char*)p_pu8Arg, "BME") != NULL)
          {
-            PRINT_CUSTOM("$ACK,CFG+%s\n","1");
+            printf("$ACK,CFG+%s\n","1");
             l_u8Len = strlen((char*)&p_pu8Arg[4u]);
             vCfgBME(&p_pu8Arg[4u], l_u8Len);
          }
          else if(strstr((char*)p_pu8Arg, "ADX") != NULL)
          {
-            PRINT_CUSTOM("$ACK,CFG+%s\n","1");
+            printf("$ACK,CFG+%s\n","1");
             l_u8Len = strlen((char*)&p_pu8Arg[4u]);
             vCfgADX(&p_pu8Arg[4u], l_u8Len);
          }
          else if(strstr((char*)p_pu8Arg, "LIS") != NULL)
          {
-            PRINT_CUSTOM("$ACK,CFG+%s\n","1");
+            printf("$ACK,CFG+%s\n","1");
             l_u8Len = strlen((char*)&p_pu8Arg[4u]);
             vCfgLIS(&p_pu8Arg[4u], l_u8Len);
          }
          else if(strstr((char*)p_pu8Arg, "LSM") != NULL)
          {
-            PRINT_CUSTOM("$ACK,CFG+%s\n","1");
+            printf("$ACK,CFG+%s\n","1");
             l_u8Len = strlen((char*)&p_pu8Arg[4u]);
             vCfgLSM(&p_pu8Arg[4u], l_u8Len);
          }
@@ -2387,18 +2461,18 @@ static void vCfgSensor(uint8_t * p_pu8Arg, uint8_t p_u8Size)
          {
             if(g_u8TestInProgress == 1u)
             {
-               PRINT_CUSTOM("$ACK,CFG+%s\n","1");
+               printf("$ACK,CFG+%s\n","1");
                l_u8Len = strlen((char*)&p_pu8Arg[4u]);
                vCfgORG(&p_pu8Arg[4u], l_u8Len);
             }
             else
             {
-               PRINT_CUSTOM("$ACK,CFG+%s\n","0");
+               printf("$ACK,CFG+%s\n","0");
             }
          }
          else
          {
-            PRINT_CUSTOM("$ACK,CFG+%s\n","0");
+            printf("$ACK,CFG+%s\n","0");
          }
       }
    }
@@ -2406,32 +2480,32 @@ static void vCfgSensor(uint8_t * p_pu8Arg, uint8_t p_u8Size)
    {
       if(strstr((char*)p_pu8Arg, "BME") != NULL)
       {
-         PRINT_CUSTOM("$ACK,CFG+%s\n","1");
+         printf("$ACK,CFG+%s\n","1");
          vCfgBME(NULL, 0u);
       }
       else if(strstr((char*)p_pu8Arg, "ADX") != NULL)
       {
-         PRINT_CUSTOM("$ACK,CFG+%s\n","1");
+         printf("$ACK,CFG+%s\n","1");
          vCfgADX(NULL, 0u);
       }
       else if(strstr((char*)p_pu8Arg, "LIS") != NULL)
       {
-         PRINT_CUSTOM("$ACK,CFG+%s\n","1");
+         printf("$ACK,CFG+%s\n","1");
          vCfgLIS(NULL, 0u);
       }
       else if(strstr((char*)p_pu8Arg, "LSM") != NULL)
       {
-         PRINT_CUSTOM("$ACK,CFG+%s\n","1");
+         printf("$ACK,CFG+%s\n","1");
          vCfgLSM(NULL, 0u);
       }
       else
       {
-         PRINT_CUSTOM("$ACK,CFG+%s\n","0");
+         printf("$ACK,CFG+%s\n","0");
       }
    }
    else
    {
-      PRINT_CUSTOM("$ACK,CFG+%s\n","0");
+      printf("$ACK,CFG+%s\n","0");
    }
 }
 
@@ -2467,7 +2541,7 @@ static void vCfgBME(uint8_t * p_pu8Arg, uint8_t p_u8Size)
    {
       eBME280_TPHRead();
    }
-   PRINT_CUSTOM("$RSL,CFG,BME,%c+%s\n",(char)p_pu8Arg[0u],"1");
+   printf("$RSL,CFG,BME,%c+%s\n",(char)p_pu8Arg[0u],"1");
 }
 static void vCfgADX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
 {
@@ -2533,7 +2607,7 @@ static void vCfgADX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
    {
       (void)eADXL362_AccelerationRead();
    }
-   PRINT_CUSTOM("$RSL,CFG,ADX,%c+%s\n",(char)p_pu8Arg[0u],"1");
+   printf("$RSL,CFG,ADX,%c+%s\n",(char)p_pu8Arg[0u],"1");
 }
 static void vCfgLIS(uint8_t * p_pu8Arg, uint8_t p_u8Size)
 {
@@ -2573,7 +2647,7 @@ static void vCfgLIS(uint8_t * p_pu8Arg, uint8_t p_u8Size)
    {
       eLIS2MDL_MagneticRead();
    }
-   PRINT_CUSTOM("$RSL,CFG,LIS,%c+%s\n",(char)p_pu8Arg[0u],"1");
+   printf("$RSL,CFG,LIS,%c+%s\n",(char)p_pu8Arg[0u],"1");
 }
 static void vCfgLSM(uint8_t * p_pu8Arg, uint8_t p_u8Size)
 {
@@ -2608,7 +2682,7 @@ static void vCfgLSM(uint8_t * p_pu8Arg, uint8_t p_u8Size)
          (void)eLSM6DSL_GyroRead();
       }
    }
-   PRINT_CUSTOM("$RSL,CFG,LSM,%c+%s\n",(char)p_pu8Arg[0u],"1");
+   printf("$RSL,CFG,LSM,%c+%s\n",(char)p_pu8Arg[0u],"1");
 }
 
 static void vCfgORG(uint8_t * p_pu8Arg, uint8_t p_u8Size)
@@ -2658,6 +2732,296 @@ static void vCfgORG(uint8_t * p_pu8Arg, uint8_t p_u8Size)
             break;
       }
    }      
+}
+
+static void vStartSelfTest(uint8_t * p_pu8Arg, uint8_t p_u8Size)
+{
+   if(strncmp((char*)p_pu8Arg, "ADXL", strlen("ADXL")) == 0)
+   {
+      printf("$ACK,SFT+ADXL+1\n");
+      vStartADXLSelfTest();
+   }
+   else if(strncmp((char*)p_pu8Arg, "LSM6", strlen("LSM6")) == 0)
+   {
+      printf("$ACK,SFT+LSM6+1\n");
+      vStartLSM6SelfTest();
+   }
+   else if(strncmp((char*)p_pu8Arg, "LIS2", strlen("LIS2")) == 0)
+   {
+      printf("$ACK,SFT+LIS2+1\n");
+      vStartLIS2SelfTest();
+   }
+   else
+   {
+      printf("$ACK,SFT+UKW+0\n");
+   }
+}
+
+static void vStartADXLSelfTest(void)
+{
+#if (EN_ADXL362 == 1)
+   #define MIN_X_Z   (int32_t)50
+   #define MAX_X_Z   (int32_t)700
+   #define MIN_Y     (int32_t)-700
+   #define MAX_Y     (int32_t)-50
+   
+   s_IntMng_Context_t l_sInterruptCxt;
+   const uint32_t l_s32SampleNb = 16;
+   int16_t l_s16X = 0;
+   int16_t l_s16Y = 0;
+   int16_t l_s16Z = 0;
+   int32_t l_s32X = 0;
+   int32_t l_s32Y = 0;
+   int32_t l_s32Z = 0;
+   int32_t l_s32XST = 0;
+   int32_t l_s32YST = 0;
+   int32_t l_s32ZST = 0;
+   int32_t l_s32XRes = 0;
+   int32_t l_s32YRes = 0;
+   int32_t l_s32ZRes = 0;
+   uint8_t l_u8Idx = 0u;
+   uint8_t l_u8Error = 255u;
+#endif
+
+   if(g_u8SPIInit == 1u)
+   {
+      /* Start ADXL Self Test */   
+#if (EN_ADXL362 == 1)
+      vHal_GPIO_Set(ADXL_POWER_EN);
+      vHal_Timer_DelayMs(DELAY_WAKEUP_SENSOR);
+      
+      l_sInterruptCxt.u32Pin = ADXL_INT2;
+      l_sInterruptCxt.ePullMode = HALGPIO_PIN_NOPULL;
+      l_sInterruptCxt.ePolarityDetection = INT_POL_DTCT_TOGGLE;
+      l_sInterruptCxt.fpvHandler = &vADXLSelfTestIntHandler;
+      
+      if(eIntMngr_Add(l_sInterruptCxt) != INT_MNG_ERROR_NONE)
+      {
+         printf("$RSL,INT+ADXL+0\n");
+      }
+      l_sInterruptCxt.u32Pin = ADXL_INT1;
+      l_sInterruptCxt.ePullMode = HALGPIO_PIN_NOPULL;
+      l_sInterruptCxt.ePolarityDetection = INT_POL_DTCT_TOGGLE;
+      l_sInterruptCxt.fpvHandler = &vADXLSelfTestIntHandler;
+      
+      if(eIntMngr_Add(l_sInterruptCxt) != INT_MNG_ERROR_NONE)
+      {
+         printf("$RSL,INT+ADXL+0\n");
+      }
+      
+      if(eADXL362_ContextSet(g_sADXLContext) == ADXL362_ERROR_NONE)
+      {
+         if(eADXL362_SoftReset() == ADXL362_ERROR_NONE)
+         {
+            vHal_Timer_DelayMs(100u); // ADXL reset delay
+            if(eADXL362_Init() == ADXL362_ERROR_NONE)
+            {
+               vHal_Timer_DelayMs(200u); // ADXL wait for first data
+               for(l_u8Idx = 0u;l_u8Idx<l_s32SampleNb;l_u8Idx++)
+               {
+                  if(eADXL362_AccelerationBurstRead() == ADXL362_ERROR_NONE)
+                  {
+                     vADXL362_AccelerationGet(&l_s16X, &l_s16Y, &l_s16Z);
+                     l_s32X += l_s16X;
+                     l_s32Y += l_s16Y;
+                     l_s32Z += l_s16Z;
+                  }
+                  vHal_Timer_DelayMs(1u);
+               }
+               /* Compute Avg */
+               l_s32X = (int16_t)(l_s32X / l_s32SampleNb);
+               l_s32Y = (int16_t)(l_s32Y / l_s32SampleNb);
+               l_s32Z = (int16_t)(l_s32Z / l_s32SampleNb);
+               
+               if(eADXL362_MeasureModeSet(ADXL362_MEASURE_STANDBY) == ADXL362_ERROR_NONE)
+               {
+                  if(eADXL362_SelfTest(1u) == ADXL362_ERROR_NONE)
+                  {
+                     if(eADXL362_MeasureModeSet(ADXL362_MEASURE_ON) == ADXL362_ERROR_NONE)
+                     {
+                        vHal_Timer_DelayMs(200u); // ADXL wait for first data
+                        for(l_u8Idx = 0u;l_u8Idx<l_s32SampleNb;l_u8Idx++)
+                        {
+                           if(eADXL362_AccelerationBurstRead() == ADXL362_ERROR_NONE)
+                           {
+                              vADXL362_AccelerationGet(&l_s16X, &l_s16Y, &l_s16Z);
+                              l_s32XST += l_s16X;
+                              l_s32YST += l_s16Y;
+                              l_s32ZST += l_s16Z;
+                           }
+                           //vHal_Timer_DelayMs(10u);
+                        }
+                        /* Compute Avg ST */
+                        l_s32XST = (int16_t)(l_s32XST / l_s32SampleNb);
+                        l_s32YST = (int16_t)(l_s32YST / l_s32SampleNb);
+                        l_s32ZST = (int16_t)(l_s32ZST / l_s32SampleNb);
+                        
+                        if(eADXL362_SelfTest(0u) == ADXL362_ERROR_NONE)
+                        {
+                           if(eADXL362_MeasureModeSet(ADXL362_MEASURE_STANDBY) == ADXL362_ERROR_NONE)
+                           {
+                              /* Compute result */
+                              l_s32XRes = (int16_t)(l_s32XST - l_s32X);
+                              l_s32YRes = (int16_t)(l_s32YST - l_s32Y);
+                              l_s32ZRes = (int16_t)(l_s32ZST - l_s32Z);
+                              
+                              if(   (MIN_X_Z <= l_s32XRes) && (l_s32XRes <= MAX_X_Z)
+                                 && (MIN_Y <= l_s32YRes) && (l_s32YRes <= MAX_Y)
+                                 && (MIN_X_Z <= l_s32ZRes) && (l_s32ZRes <= MAX_X_Z) )
+                              {
+                                 l_u8Error = 0u;
+                              }
+                           }
+                        }
+                     }
+                  }
+               }
+            }
+         }
+      }
+      
+      //vHal_GPIO_Clear(ADXL_POWER_EN);
+#endif
+   }
+   
+   if(l_u8Error == 0u)
+   {
+      HT_SET_FLAG(HT_FLAG_SELFTEST_ADXL);
+   }
+   else
+   {
+      printf("$RSL,SFT+ADXL+0\n");
+   }
+}
+static void vADXLSelfTestIntHandler(uint32_t p_u32IntPin, e_IntMng_PolarityDetection_t p_ePolarity)
+{
+   if(p_u32IntPin == ADXL_INT2)
+   {
+      HT_SET_FLAG(HT_FLAG_INT2_ADXL);
+   }
+   if(p_u32IntPin == ADXL_INT1)
+   {
+      HT_SET_FLAG(HT_FLAG_INT1_ADXL);
+   }
+}
+
+static void vStartLSM6SelfTest(void)
+{
+#if (EN_LSM6DSL == 1)
+   //s_IntMng_Context_t l_sInterruptCxt;
+   const int32_t l_s32SampleNb = 5;
+   int16_t l_s16X = 0;
+   int16_t l_s16Y = 0;
+   int16_t l_s16Z = 0;
+   int32_t l_s32X = 0;
+   int32_t l_s32Y = 0;
+   int32_t l_s32Z = 0;
+   int32_t l_s32XST = 0;
+   int32_t l_s32YST = 0;
+   int32_t l_s32ZST = 0;
+   int32_t l_s32XRes = 0;
+   int32_t l_s32YRes = 0;
+   int32_t l_s32ZRes = 0;
+   uint8_t l_u8Idx = 0u;
+   uint8_t l_u8Error = 255u;
+   
+   #define ST_LSM6_MIN_POS		90
+   #define ST_LSM6_MAX_POS		1700
+   
+   if(g_u8I2CInit == 1u)
+   {
+      if(eLSM6DSL_ContextSet(g_sLSM6Context) == LSM6DSL_ERROR_NONE)
+      {
+         if(   (eLSM6_DebugWrite(0x10,0x38) == 0u)
+            && (eLSM6_DebugWrite(0x11,0x00) == 0u)
+            && (eLSM6_DebugWrite(0x12,0x44) == 0u)
+            && (eLSM6_DebugWrite(0x13,0x00) == 0u)     
+            && (eLSM6_DebugWrite(0x14,0x00) == 0u)     
+            && (eLSM6_DebugWrite(0x15,0x00) == 0u)     
+            && (eLSM6_DebugWrite(0x16,0x00) == 0u)     
+            && (eLSM6_DebugWrite(0x17,0x00) == 0u)   
+            && (eLSM6_DebugWrite(0x18,0x00) == 0u)   
+            && (eLSM6_DebugWrite(0x19,0x00) == 0u) )
+         {
+            vHal_Timer_DelayMs(100u); // LSM6 wait for first data
+            for(l_u8Idx = 0u;l_u8Idx<l_s32SampleNb;l_u8Idx++)
+            {
+               if(eLSM6DSL_AccelRead() == LSM6DSL_ERROR_NONE)
+               {
+                  if(eLSM6DSL_AccelGet(&l_s16X, &l_s16Y, &l_s16Z) == LSM6DSL_ERROR_NONE)
+                  {
+                     l_s32X += l_s16X;
+                     l_s32Y += l_s16Y;
+                     l_s32Z += l_s16Z;
+                  }
+               }
+            }
+            /* Compute Avg NoST */
+            l_s32X = (int16_t)(l_s32X / l_s32SampleNb);
+            l_s32Y = (int16_t)(l_s32Y / l_s32SampleNb);
+            l_s32Z = (int16_t)(l_s32Z / l_s32SampleNb);
+             
+            /* Enable Self Test */
+            if(eLSM6_DebugWrite(0x14,0x01) == 0u)
+            {
+               vHal_Timer_DelayMs(100u); // LSM6 wait for first data
+               for(l_u8Idx = 0u;l_u8Idx<l_s32SampleNb;l_u8Idx++)
+               {
+                  if(eLSM6DSL_AccelRead() == LSM6DSL_ERROR_NONE)
+                  {
+                     if( eLSM6DSL_AccelGet(&l_s16X, &l_s16Y, &l_s16Z) == LSM6DSL_ERROR_NONE)
+                     {
+                        l_s32XST += l_s16X;
+                        l_s32YST += l_s16Y;
+                        l_s32ZST += l_s16Z;
+                     }
+                  }
+               }
+               /* Compute Avg ST */
+               l_s32XST = (int16_t)(l_s32XST / l_s32SampleNb);
+               l_s32YST = (int16_t)(l_s32YST / l_s32SampleNb);
+               l_s32ZST = (int16_t)(l_s32ZST / l_s32SampleNb);
+               
+               /* Compute result */
+               l_s32XRes = (int16_t)(l_s32XST - l_s32X);
+               l_s32YRes = (int16_t)(l_s32YST - l_s32Y);
+               l_s32ZRes = (int16_t)(l_s32ZST - l_s32Z);
+               
+               if(   (ST_LSM6_MIN_POS <= l_s32XRes) && (l_s32XRes <= ST_LSM6_MAX_POS)
+                  && (ST_LSM6_MIN_POS <= l_s32YRes) && (l_s32YRes <= ST_LSM6_MAX_POS)
+                  && (ST_LSM6_MIN_POS <= l_s32ZRes) && (l_s32ZRes <= ST_LSM6_MAX_POS) )
+               {
+                  l_u8Error = 0u;
+               }
+               // Disable Sensor
+               eLSM6_DebugWrite(0x10,0x00);
+               // Disable Self Test
+               eLSM6_DebugWrite(0x14,0x00);
+            }
+         }
+      }
+   }
+   
+   if(l_u8Error == 0u)
+   {
+      HT_SET_FLAG(HT_FLAG_SELFTEST_LSM6);
+   }
+   else
+   {
+      printf("$RSL,SFT+LSM6+0\n");
+   }
+#endif
+}
+static void vLSM6SelfTestIntHandler(uint32_t p_u32IntPin, e_IntMng_PolarityDetection_t p_ePolarity)
+{
+   HT_SET_FLAG(HT_FLAG_SELFTEST_LSM6);
+}
+static void vStartLIS2SelfTest(void)
+{
+}
+static void vLIS2SelfTestIntHandler(uint32_t p_u32IntPin, e_IntMng_PolarityDetection_t p_ePolarity)
+{
+   HT_SET_FLAG(HT_FLAG_SELFTEST_LIS2);
 }
 
 /****************************************************************************************

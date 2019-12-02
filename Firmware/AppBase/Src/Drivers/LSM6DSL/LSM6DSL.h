@@ -87,7 +87,7 @@ typedef enum _LSM6DSL_MODE_ACCEL_GYRO_ {
 }e_LSM6DSL_Mode_t;
 
 typedef enum _LSM6DSL_RANGE_GYRO_ {
-   LSM6DSL_GYRO_RANGE_250DPS,
+   LSM6DSL_GYRO_RANGE_250DPS = 0u,
    LSM6DSL_GYRO_RANGE_500DPS,
    LSM6DSL_GYRO_RANGE_1000DPS,
    LSM6DSL_GYRO_RANGE_2000DPS,
@@ -143,10 +143,11 @@ e_LSM6DSL_Error_t eLSM6DSL_GyroRead(void);
 e_LSM6DSL_Error_t eLSM6DSL_GyroGet(int16_t * p_ps16X, int16_t * p_ps16Y, int16_t * p_ps16Z);
 e_LSM6DSL_Error_t eLSM6DSL_GyroRawGet(uint16_t * p_pu16X, uint16_t * p_pu16Y, uint16_t * p_pu16Z);
 
-//e_LSM6DSL_Error_t eLSM6DSL_AccelIntCfgSet( );
-//e_LSM6DSL_Error_t eLSM6DSL_GyroIntCfgSet( );
 
 uint8_t u8LSM6DSL_IsAvailable(void);
+
+e_LSM6DSL_Error_t eLSM6_DebugRead(uint8_t p_u8Register, uint8_t * p_pu8Value, uint8_t p_u8RegNumber);
+e_LSM6DSL_Error_t eLSM6_DebugWrite(uint8_t p_u8Register, uint8_t p_u8Data);
 
 #endif /* LSM6DSL_H */
 

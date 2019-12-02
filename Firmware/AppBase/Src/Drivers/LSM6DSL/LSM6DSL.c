@@ -21,6 +21,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "lsm6dsl_reg.h"
 /* Self include */
 #include "LSM6DSL.h"
 
@@ -518,6 +519,9 @@ static e_LSM6DSL_Error_t eWriteBitsReg(uint8_t p_u8Register, uint8_t p_u8Value, 
 //static void vLowPowerModeAccel(void);
 //static void vHighPerfModeAccel(void);
 
+static int32_t s32_write_ptr(void * p_pvHandle, uint8_t p_u8Reg, uint8_t * p_au8Data, uint16_t p_u16Size);
+static int32_t s32_read_ptr(void * p_pvHandle, uint8_t p_u8Reg, uint8_t * p_au8Data, uint16_t p_u16Size);
+
 /****************************************************************************************
  * Variable declarations
  ****************************************************************************************/
@@ -539,6 +543,8 @@ struct {
    e_LSM6DSL_GyroFullScale_t eFS;
    e_LSM6DSL_Mode_t eMode;
 }g_sGyroCfg;
+
+static lsm6dsl_ctx_t g_sCtxlsm6dsl;
 
 /****************************************************************************************
  * Public functions
@@ -565,6 +571,9 @@ e_LSM6DSL_Error_t eLSM6DSL_ContextSet(s_LSM6DSL_Context_t p_sContext)
       g_sLSM6DSLContext.sI2CCfg.fp_u32I2C_Read = p_sContext.sI2CCfg.fp_u32I2C_Read;
       g_sLSM6DSLContext.fp_vDelay_ms = p_sContext.fp_vDelay_ms;
 
+      g_sCtxlsm6dsl.write_reg = s32_write_ptr;
+      g_sCtxlsm6dsl.read_reg = s32_read_ptr;
+      
       /* Check Sensor ID */
       if(eReadRegister(WHO_AM_I_REG, &l_u8Data, 1u) == LSM6DSL_ERROR_NONE)
       {
@@ -734,7 +743,7 @@ e_LSM6DSL_Error_t eLSM6DSL_AccelRead(void)
 {
    uint8_t l_au8Data[6u] = { 0u };
    uint8_t l_u8DataRdy = 0u;
-   uint8_t l_u8Retry = 3u;
+   uint8_t l_u8Retry = 5u;
    e_LSM6DSL_Error_t l_eErrCode = LSM6DSL_ERROR_CONTEXT;
 
    if(g_u8LSM6Initialized == 1u)
@@ -977,6 +986,14 @@ uint8_t u8LSM6DSL_IsAvailable(void)
    return ((g_u8LSM6Initialized == 1u) && (g_u8LSM6CommFailure == 0u))?1u:0u;
 }
 
+e_LSM6DSL_Error_t eLSM6_DebugRead(uint8_t p_u8Register, uint8_t * p_pu8Value, uint8_t p_u8RegNumber)
+{
+   return eReadRegister(p_u8Register, p_pu8Value, p_u8RegNumber);
+}
+e_LSM6DSL_Error_t eLSM6_DebugWrite(uint8_t p_u8Register, uint8_t p_u8Data)
+{
+   return eWriteRegister(p_u8Register, p_u8Data);
+}
 /****************************************************************************************
  * Private functions
  ****************************************************************************************/
@@ -1159,6 +1176,31 @@ static void vHighPerfModeAccel(void)
    }
 }
 */
+static int32_t s32_write_ptr(void * p_pvHandle, uint8_t p_u8Reg, uint8_t * p_au8Data, uint16_t p_u16Size)
+{
+   uint16_t l_u16DataSize = 0u;
+   int32_t l_s32Error = 0;
+   
+   for(l_u16DataSize = 0u; l_u16DataSize < p_u16Size;l_u16DataSize++)
+   {
+      if(eWriteRegister(p_u8Reg, p_au8Data[l_u16DataSize]) != LSM6DSL_ERROR_NONE)
+      {
+         l_s32Error++;
+      }
+   }
+   
+   return l_s32Error;
+}
+static int32_t s32_read_ptr(void * p_pvHandle, uint8_t p_u8Reg, uint8_t * p_au8Data, uint16_t p_u16Size)
+{
+   int32_t l_s32Error = 0;
+   
+   if(eReadRegister(p_u8Reg, p_au8Data, (uint8_t)p_u16Size) != LSM6DSL_ERROR_NONE)
+   {
+      l_s32Error = -1;
+   }
+   return l_s32Error;
+}
 /****************************************************************************************
  * End Of File
  ****************************************************************************************/

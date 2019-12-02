@@ -420,39 +420,67 @@ void vORG1510_PeriodicModeSet(uint8_t p_u8Type, uint32_t p_u32RunTime, uint32_t 
 }
 
 /**@brief   Option to set the NMEA sentence output rates.
- * @param[in] p_u8GLL 0 to disable sentence GLL else 1 to enable
- * @param[in] p_u8RMC 0 to disable sentence RMC else 1 to enable
- * @param[in] p_u8VTG 0 to disable sentence VTG else 1 to enable
- * @param[in] p_u8GGA 0 to disable sentence GGA else 1 to enable
- * @param[in] p_u8GSA 0 to disable sentence GSA else 1 to enable
- * @param[in] p_u8GSV 0 to disable sentence GSV else 1 to enable
- * @param[in] p_u8ZDA 0 to disable sentence ZDA else 1 to enable
+ * @param[in] p_u8GLL 0 to disable sentence GLL else update rate
+ * @param[in] p_u8RMC 0 to disable sentence RMC else update rate
+ * @param[in] p_u8VTG 0 to disable sentence VTG else update rate
+ * @param[in] p_u8GGA 0 to disable sentence GGA else update rate
+ * @param[in] p_u8GSA 0 to disable sentence GSA else update rate
+ * @param[in] p_u8GSV 0 to disable sentence GSV else update rate
+ * @param[in] p_u8GST 0 to disable sentence GST else update rate
+ * @param[in] p_u8GRS 0 to disable sentence GRS else update rate
+ * @param[in] p_u8ZDA 0 to disable sentence ZDA else update rate
+ * @param[in] p_u8MCHN 0 to disable sentence MCHN else update rate
+ * @param[in] p_u8DTM 0 to disable sentence DTM else update rate
+ * @param[in] p_u8GBS 0 to disable sentence GBS else update rate
  * @return None
  */
-void vORG1510_SentencesUpdate(uint8_t p_u8GLL, uint8_t p_u8RMC, uint8_t p_u8VTG,
-                              uint8_t p_u8GGA, uint8_t p_u8GSA, uint8_t p_u8GSV, uint8_t p_u8ZDA)
+void vORG1510_SentencesUpdate(uint8_t p_u8GLL, uint8_t p_u8RMC, uint8_t p_u8VTG, uint8_t p_u8GGA, 
+                              uint8_t p_u8GSA, uint8_t p_u8GSV, uint8_t p_u8GRS, uint8_t p_u8GST,
+                              uint8_t p_u8ZDA, uint8_t p_u8MCHN,uint8_t p_u8DTM, uint8_t p_u8GBS)
 {
    char l_achCmd[60u] = "$PMTK314,";
    uint8_t l_u8ChecksumAscii[2u] = { 0u };
    uint8_t l_u8Size = 0u;
    char l_achParam[3u] = { 0 };
 
+   // 0.GLL
    sprintf(l_achParam, "%d", p_u8GLL);
    strcat(l_achCmd, l_achParam);  strcat(l_achCmd, ",");
+   // 1.RMC
    sprintf(l_achParam, "%d", p_u8RMC);
    strcat(l_achCmd, l_achParam);  strcat(l_achCmd, ",");
+   // 2.VTG
    sprintf(l_achParam, "%d", p_u8VTG);
    strcat(l_achCmd, l_achParam);  strcat(l_achCmd, ",");
+   // 3.GGA
    sprintf(l_achParam, "%d", p_u8GGA);
    strcat(l_achCmd, l_achParam);  strcat(l_achCmd, ",");
+   // 4.GSA
    sprintf(l_achParam, "%d", p_u8GSA);
    strcat(l_achCmd, l_achParam);  strcat(l_achCmd, ",");
+   // 5.GSV
    sprintf(l_achParam, "%d", p_u8GSV);
    strcat(l_achCmd, l_achParam);  strcat(l_achCmd, ",");
-   strcat(l_achCmd, "0,0,0,0,0,0,0,0,0,0,0,");
+   // 6.GRS
+   sprintf(l_achParam, "%d", p_u8GRS);
+   strcat(l_achCmd, l_achParam);  strcat(l_achCmd, ",");
+   // 7.GST   
+   sprintf(l_achParam, "%d", p_u8GST);
+   strcat(l_achCmd, l_achParam);  strcat(l_achCmd, ",");
+   // 8.9.10.11.12.13.14.15.16
+   strcat(l_achCmd, "0,0,0,0,0,0,0,0,0,");
+   // 17.ZDA
    sprintf(l_achParam, "%d", p_u8ZDA);
+   strcat(l_achCmd, l_achParam);  strcat(l_achCmd, ",");
+   // 18.MCHN
+   sprintf(l_achParam, "%d", p_u8MCHN);
+   strcat(l_achCmd, l_achParam);  strcat(l_achCmd, ",");
+   // 19.DTM
+   sprintf(l_achParam, "%d", p_u8DTM);
+   strcat(l_achCmd, l_achParam);  strcat(l_achCmd, ",");
+   // 20.GBS
+   sprintf(l_achParam, "%d", p_u8GBS);
    strcat(l_achCmd, l_achParam);
-   strcat(l_achCmd, ",0,0,0");
 
    /* Compte checksum */
    vChecksumCompute((uint8_t*)l_achCmd, strlen(l_achCmd), l_u8ChecksumAscii, &l_u8Size);

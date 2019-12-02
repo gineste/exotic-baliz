@@ -28,7 +28,7 @@
 #include "Libraries/SimpleLED.h"
 
 #include "HardwareTest.h"
-
+#include "SigFox.h"
 #include "OperationalSM.h"
 
 #include "GlobalDefs.h"
@@ -53,9 +53,9 @@
 /****************************************************************************************
  * Variable declarations
  ****************************************************************************************/
-//uint8_t g_u8Char = 0u;//FRAME_SIZE_MAX
+#ifndef SIGFOX_CEM_TEST
 uint8_t g_au8Data[256u] = { 0u };
-//uint8_t g_u8PendingCmd = 0u;
+#endif
 
 /****************************************************************************************
  * Public functions
@@ -65,6 +65,7 @@ uint8_t g_au8Data[256u] = { 0u };
  */
 void vOperational_Entry(void)
 {
+#ifndef SIGFOX_CEM_TEST
    uint8_t l_au8Data[6u] = { 0u };
    uint8_t l_u8Size = 0u;
    /* Set LED to Operational */
@@ -73,39 +74,22 @@ void vOperational_Entry(void)
    CLEAR_TERMINAL();
    vBLE_MACAddressGet(l_au8Data, &l_u8Size);
    PRINT_CUSTOM("%02X:%02X:%02X:%02X:%02X:%02X\n",  
-   l_au8Data[5u],l_au8Data[4u],l_au8Data[3u],l_au8Data[2u],l_au8Data[1u],l_au8Data[0u]);   
-//   vHT_PrintHelp();   
+   l_au8Data[5u],l_au8Data[4u],l_au8Data[3u],l_au8Data[2u],l_au8Data[1u],l_au8Data[0u]);    
+#else
+   vSigFox_TestRadio(1u,868000000u,14u);
+#endif
 }
 /**@brief Main mode of operation, get data and send it over SigFox, advertise, etc ...
  * @return None
  */
 void vOperational_Process(void)
 {
-//   uint8_t l_u8RcvData = 0u;
+#ifndef SIGFOX_CEM_TEST
    uint8_t l_u8SizeRead = 0u;
-   uint8_t l_u8Idx = 0u;
-   uint16_t r = 0u;
-   char c = '\0';
    
-   do {
-      r = SEGGER_RTT_Read(0u, &c, 1u);
-      if (r == 1) 
-      {
-         if(c == '$')
-         {  /* New frame*/
-            g_au8Data[l_u8Idx++] = c;
-         }
-         else
-         {
-            if(l_u8Idx != 0u)
-            {
-               g_au8Data[l_u8Idx++] = c;
-               l_u8SizeRead = l_u8Idx;
-            }
-         }
-      }
-   } while( (c != '\n') && (c != '\0') );
-      
+   vHT_Scanf("%s", g_au8Data);
+   l_u8SizeRead = strlen((char*)g_au8Data);
+   l_u8SizeRead++;
    
    if(l_u8SizeRead > 0u)
    {
@@ -113,6 +97,7 @@ void vOperational_Process(void)
    
       memset(g_au8Data, 0u, FRAME_SIZE_W_ARG_MAX);
    }
+#endif
 }
 
 /**@brief Function to check if device should go in Connected, Error or DeepSleep State.

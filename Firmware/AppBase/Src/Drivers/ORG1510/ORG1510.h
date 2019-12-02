@@ -69,8 +69,9 @@ void vORG1510_StaticNav(uint8_t p_u8Threshold);
 void vORG1510_HDOPThresholdSet(uint8_t p_u8Threshold);
 void vORG1510_PeriodicModeSet(uint8_t p_u8Type, uint32_t p_u32RunTime, uint32_t p_u32SleepTime, 
                               uint32_t p_u32SecondRunTime, uint32_t p_u32SecondSleepTime);
-void vORG1510_SentencesUpdate(uint8_t p_u8GLL, uint8_t p_u8RMC, uint8_t p_u8VTG, 
-                              uint8_t p_u8GGA, uint8_t p_u8GSA, uint8_t p_u8GSV, uint8_t p_u8ZDA);
+void vORG1510_SentencesUpdate(uint8_t p_u8GLL, uint8_t p_u8RMC, uint8_t p_u8VTG, uint8_t p_u8GGA, 
+                              uint8_t p_u8GSA, uint8_t p_u8GSV, uint8_t p_u8GRS, uint8_t p_u8GST,
+                              uint8_t p_u8ZDA, uint8_t p_u8MCHN,uint8_t p_u8DTM, uint8_t p_u8GBS);
 void vORG1510_GLP(uint8_t p_u8Enable);
 void vORG1510_SolutionPriority(uint8_t p_u8TTFForHPA);
 

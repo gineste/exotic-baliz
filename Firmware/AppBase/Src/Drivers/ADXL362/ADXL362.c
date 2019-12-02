@@ -313,7 +313,7 @@ e_ADXL362_ErrorCode_t eADXL362_SoftReset(void)
    uint8_t l_u8Buffer = ADXL362_RESET_KEY;
 
    l_eErrCode = eRegisterSet(ADXL362_REG_SOFT_RESET, &l_u8Buffer, 1u);
-
+   g_u8IsInitialized = 0u;
    return l_eErrCode;
 }
 /**@brief Function to Get Part ID.
@@ -802,6 +802,27 @@ e_ADXL362_ErrorCode_t eADXL362_AccelerationRead(void)
       l_eErrCode = ADXL362_ERROR_INIT;
    }
 
+   return l_eErrCode;
+}
+e_ADXL362_ErrorCode_t eADXL362_AccelerationBurstRead(void)
+{
+   e_ADXL362_ErrorCode_t l_eErrCode;
+   uint8_t l_au8Buffer[6u] = { 0u };
+   
+   if(g_u8IsInitialized == 1u)
+   {  /* Get X, Y and Z Data */
+      l_eErrCode = eRegisterGet(ADXL362_REG_XDATA_L, l_au8Buffer, 6u);    
+      EXIT_ERROR_CHECK(l_eErrCode);
+      
+      g_sAccelXYZ.s16AccelX = (int16_t)((((uint16_t)l_au8Buffer[1u]) << 8u) + ((uint16_t)l_au8Buffer[0u]));         
+      g_sAccelXYZ.s16AccelY = (int16_t)((((uint16_t)l_au8Buffer[3u]) << 8u) + ((uint16_t)l_au8Buffer[2u]));
+      g_sAccelXYZ.s16AccelZ = (int16_t)((((uint16_t)l_au8Buffer[5u]) << 8u) + ((uint16_t)l_au8Buffer[4u]));
+   }
+   else
+   {  /* ADXL Not Initialized */ 
+      l_eErrCode = ADXL362_ERROR_INIT;
+   }
+   
    return l_eErrCode;
 }
 

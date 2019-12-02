@@ -184,7 +184,7 @@ void vBT_ITF_DataReceived(uint8_t * p_pu8Buffer, uint16_t p_u16Length)
    PRINT_T2("%s","\n");
 #endif   /* LOG_BLE_RX */
    
-   if(ESP_Receiving != ESI_NewIncomingFrame(&g_sBthEsiItf, g_au8BthInBuffer, g_u8BthInBufferSize))
+   if(ESI_Failed != ESI_NewIncomingFrame(&g_sBthEsiItf, g_au8BthInBuffer, g_u8BthInBufferSize))
    {
       g_u8BthInBufferSize = 0u;
       memset(g_au8BthInBuffer, 0u, BTH_ESI_MAX_FRAME_SIZE);

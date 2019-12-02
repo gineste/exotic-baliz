@@ -72,10 +72,7 @@ e_HalWDT_Error_t eHal_WDT_Init(uint32_t p_u32TimeOut, fpv_WatchdogHandler_t p_sW
    
    if(g_u8IsInitialized == 0u)
    {
-      if(p_u32TimeOut >= WDT_MIN_TIMEOUT)
-      {
-         l_sConfig.reload_value = p_u32TimeOut;
-      }
+      l_sConfig.reload_value = (p_u32TimeOut<WDT_MIN_TIMEOUT)?WDT_MIN_TIMEOUT:p_u32TimeOut;
       
       if(p_sWatchdogHandler != NULL)
       {

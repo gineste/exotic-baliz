@@ -104,6 +104,8 @@ typedef struct _ADXL362_CONTEXT_ {
 
    e_ADXL362_IntMapX_t eInt1Map;             /* Type of the interrupt n°1 */
    e_ADXL362_IntMapX_t eInt2Map;             /* Type of the interrupt n°2 */
+   uint32_t u32Int1Pin;
+   uint32_t u32Int2Pin;  
 
    e_ADXL362_WakeUpMode_t eWakeUpMode;       /* Wake-up mode (Let it OFF if you adjustable ODR for (In)Activity detection) */
    e_ADXL362_MeasMode_t eMeasureMode;		   /* Power mode (Standby or Measurement Mode) */
@@ -227,6 +229,7 @@ e_ADXL362_ErrorCode_t eADXL362_InterruptMapSet(uint8_t p_u8InterruptNumber, e_AD
  * @return Error Code.
  */
 e_ADXL362_ErrorCode_t eADXL362_AccelerationRead(void);
+e_ADXL362_ErrorCode_t eADXL362_AccelerationBurstRead(void);
 /**@brief Function to get last acceleration data read of ADXL362.
  * @param[in] p_ps16AccelX : Pointer to the acceleration data on X.
  * @param[in] p_ps16AccelY : Pointer to the acceleration data on Y.

@@ -21,11 +21,11 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "sdk_config.h"
 #include "BoardConfig.h"
 #include "GlobalDefs.h"
 
 #include <nrf_drv_gpiote.h>
-#include "HAL/HAL_GPIO.h"
 #include "board.h"
 
 /* Self include */
@@ -34,87 +34,123 @@
 /****************************************************************************************
  * Defines
  ****************************************************************************************/
+#define MAX_INTERRUPT_NUM      GPIOTE_CONFIG_NUM_OF_LOW_POWER_EVENTS
 
 /****************************************************************************************
  * Private type declarations
  ****************************************************************************************/
- 
+typedef struct _INT_MNG_HANDLER_ {
+   uint32_t u32Pin;
+   fpvInterruptHandler_t fpvHandler;
+}s_IntHandler_t;
+
 /****************************************************************************************
  * Private function declarations
  ****************************************************************************************/
 static inline void vInterruptHandler(nrf_drv_gpiote_pin_t p_u32Pin, nrf_gpiote_polarity_t p_eAction);
+static inline e_IntMng_Error_t eFindIdx(uint32_t p_u32Pin,uint8_t * p_pu8Idx);
 
 /****************************************************************************************
  * Variable declarations
  ****************************************************************************************/
-
+static uint8_t g_u8IntMngrInitialized = 0u;
+static volatile s_IntHandler_t g_sIntHandler[MAX_INTERRUPT_NUM];
+   
 /****************************************************************************************
  * Public functions
  ****************************************************************************************/ 
-void vIntManagerInit(void)
+e_IntMng_Error_t eIntMngr_Init(void)
 {
+   e_IntMng_Error_t l_eError = INT_MNG_ERROR_INIT;   
    uint32_t l_u32ErrCode = 0u;
-   nrf_drv_gpiote_in_config_t l_sPinConfig = GPIOTE_CONFIG_IN_SENSE_TOGGLE(false);
+   uint8_t l_u8Idx = 0u;
    
    l_u32ErrCode = nrf_drv_gpiote_init();
    
-   if((l_u32ErrCode == 0u) || (l_u32ErrCode == NRF_ERROR_INVALID_STATE))
+   if((l_u32ErrCode == NRF_SUCCESS) || (l_u32ErrCode == NRF_ERROR_INVALID_STATE))
    {
-   #if (EN_ADXL362 == 1)
-   	l_sPinConfig.is_watcher = false;
-      l_sPinConfig.hi_accuracy = false;
-      l_sPinConfig.pull = NRF_GPIO_PIN_NOPULL;
-      l_sPinConfig.sense = NRF_GPIOTE_POLARITY_TOGGLE;
-      
-      l_u32ErrCode = nrf_drv_gpiote_in_init(ADXL_INT2, &l_sPinConfig, vInterruptHandler);
-      nrf_drv_gpiote_in_event_enable(ADXL_INT2, true);   
-   #endif /* NO_ADXL362 */
-
-   #if (EN_MAX44009 == 1)
-    	l_sPinConfig.is_watcher = false;
-      l_sPinConfig.hi_accuracy = false;
-      l_sPinConfig.pull = NRF_GPIO_PIN_PULLUP;
-      l_sPinConfig.sense = NRF_GPIOTE_POLARITY_TOGGLE;//HITOLO;
-      
-      l_u32ErrCode = nrf_drv_gpiote_in_init(MAX44009_INT, &l_sPinConfig, vInterruptHandler);
-      nrf_drv_gpiote_in_event_enable(MAX44009_INT, true);   
-   #endif /* NO_MAX44009 */
-
-   #if (EN_LSM6DSL == 1)
-   	l_sPinConfig.is_watcher = false;
-      l_sPinConfig.hi_accuracy = false;
-      l_sPinConfig.pull = NRF_GPIO_PIN_NOPULL;
-      l_sPinConfig.sense = NRF_GPIOTE_POLARITY_TOGGLE;
-      
-      l_u32ErrCode = nrf_drv_gpiote_in_init(LSM6_INT1, &l_sPinConfig, vInterruptHandler);
-      nrf_drv_gpiote_in_event_enable(LSM6_INT1, true);
-      l_u32ErrCode = nrf_drv_gpiote_in_init(LSM6_INT2, &l_sPinConfig, vInterruptHandler);
-      nrf_drv_gpiote_in_event_enable(LSM6_INT2, true);   
-   #endif /* NO_LSM6DSL */
-
-   #if (EN_LIS2MDL == 1)
-      l_sPinConfig.is_watcher = false;
-      l_sPinConfig.hi_accuracy = false;
-      l_sPinConfig.pull = NRF_GPIO_PIN_NOPULL;
-      l_sPinConfig.sense = NRF_GPIOTE_POLARITY_TOGGLE;
-      
-      l_u32ErrCode = nrf_drv_gpiote_in_init(LIS2_INT, &l_sPinConfig, vInterruptHandler);
-      nrf_drv_gpiote_in_event_enable(LIS2_INT, true);
-   #endif /* NO_LIS2MDL */
-
-   #if (EN_ST25DV == 1)   
-      l_sPinConfig.is_watcher = false;
-      l_sPinConfig.hi_accuracy = false;
-      l_sPinConfig.pull = NRF_GPIO_PIN_NOPULL;
-      l_sPinConfig.sense = NRF_GPIOTE_POLARITY_TOGGLE;
-      
-      l_u32ErrCode = nrf_drv_gpiote_in_init(ST25DV_GPO_INT, &l_sPinConfig, vInterruptHandler);
-      nrf_drv_gpiote_in_event_enable(ST25DV_GPO_INT, true);
-   #endif /* NO_ST25DV */
-
-   #if (EN_LTC2943 == 1) 
-   #endif /* NO_LTC2943 */
+      for(l_u8Idx = 0u;l_u8Idx < MAX_INTERRUPT_NUM;l_u8Idx++)
+      {
+         g_sIntHandler[l_u8Idx].u32Pin = UINT8_MAX;
+         g_sIntHandler[l_u8Idx].fpvHandler = NULL;
+      }
+      g_u8IntMngrInitialized = 1u;
+      l_eError = INT_MNG_ERROR_NONE;
    }
+   
+   return l_eError;
+}
+   
+e_IntMng_Error_t eIntMngr_Add(s_IntMng_Context_t p_sContext)
+{
+   e_IntMng_Error_t l_eError = INT_MNG_ERROR_INIT;
+   uint32_t l_eErrorCode = 0u;
+   uint8_t l_u8Idx = 0u;
+   
+   nrf_drv_gpiote_in_config_t l_sPinConfig = GPIOTE_CONFIG_IN_SENSE_TOGGLE(false);
+   
+   if(g_u8IntMngrInitialized == 1u)
+   {
+      if(   (p_sContext.fpvHandler != NULL)
+         && (p_sContext.u32Pin < UINT8_MAX) )
+      {
+         l_sPinConfig.pull = (nrf_gpio_pin_pull_t)p_sContext.ePullMode;
+         l_sPinConfig.sense = (nrf_gpiote_polarity_t)p_sContext.ePolarityDetection;
+         
+         if(eFindIdx(g_sIntHandler[l_u8Idx].u32Pin, &l_u8Idx) == INT_MNG_ERROR_NOT_FOUND)
+         {  /* Find First Free */
+            if(eFindIdx(UINT8_MAX, &l_u8Idx) != INT_MNG_ERROR_NONE)
+            {
+               l_eErrorCode = 1u;
+            }
+         }
+         
+         if(l_eErrorCode == 0u)
+         {
+            g_sIntHandler[l_u8Idx].u32Pin = p_sContext.u32Pin;
+            g_sIntHandler[l_u8Idx].fpvHandler = p_sContext.fpvHandler;
+            l_eErrorCode = nrf_drv_gpiote_in_init(p_sContext.u32Pin, &l_sPinConfig, vInterruptHandler);
+            if(l_eErrorCode == 0u)
+            {
+               nrf_drv_gpiote_in_event_enable(p_sContext.u32Pin, true); 
+               l_eError = INT_MNG_ERROR_NONE;
+            }
+            else
+            {
+               l_eError = INT_MNG_ERROR_STATE;
+            }
+         }
+      }
+      else
+      {
+         l_eError = INT_MNG_ERROR_PARAM;
+      }
+   }
+   
+   return l_eError;
+}
+
+e_IntMng_Error_t eIntMngr_Delete(uint32_t p_u32Pin)
+{
+   e_IntMng_Error_t l_eError = INT_MNG_ERROR_INIT;
+   uint8_t l_u8Idx = 0u;
+   
+   if(g_u8IntMngrInitialized == 1u)
+   {
+      if(eFindIdx(p_u32Pin, &l_u8Idx) == INT_MNG_ERROR_NOT_FOUND)
+      {  
+         l_eError = INT_MNG_ERROR_PARAM;
+      }
+      else
+      {
+         g_sIntHandler[l_u8Idx].u32Pin = UINT8_MAX;
+         g_sIntHandler[l_u8Idx].fpvHandler = NULL;
+         nrf_drv_gpiote_in_uninit((nrf_drv_gpiote_pin_t)p_u32Pin);
+         l_eError = INT_MNG_ERROR_NONE;
+      }
+   }
+   
+   return l_eError;
 }
 
 /****************************************************************************************
@@ -122,92 +158,43 @@ void vIntManagerInit(void)
  ****************************************************************************************/
 static inline void vInterruptHandler(nrf_drv_gpiote_pin_t p_u32Pin, nrf_gpiote_polarity_t p_eAction)
 {
-   switch(p_u32Pin)
+   uint8_t l_u8Idx = 0u;
+   
+   if(eFindIdx((uint32_t)p_u32Pin, &l_u8Idx) == INT_MNG_ERROR_NONE)
    {
-   #if (EN_ADXL362 == 1)
-      case ADXL_INT2:
-         if(u32Hal_GPIO_Read(ADXL_INT2))
-         {
-            PRINT_FAST("$RSL,INT+1+ADXL362+1\n");
-         }
-         else
-         {
-            PRINT_FAST("$RSL,INT+1+ADXL362+0\n");
-         }
-      break;
-   #endif /* NO_ADXL362 */
-
-   #if (EN_MAX44009 == 1)
-      case MAX44009_INT:
-         if(u32Hal_GPIO_Read(MAX44009_INT))
-         {
-            PRINT_FAST("$RSL,INT+1+MAX44009+1\n");
-         }
-         else
-         {
-            PRINT_FAST("$RSL,INT+1+MAX44009+0\n");
-         }
-      break;
-   #endif /* NO_MAX44009 */
-
-   #if (EN_LSM6DSL == 1)
-      case LSM6_INT1:
-         if(u32Hal_GPIO_Read(LSM6_INT1))
-         {
-            PRINT_FAST("$RSL,INT+1+LSM6_1+1\n");
-         }
-         else
-         {
-            PRINT_FAST("$RSL,INT+1+LSM6_1+0\n");
-         }
-      break;
-      case LSM6_INT2:
-         if(u32Hal_GPIO_Read(LSM6_INT2))
-         {
-            PRINT_FAST("$RSL,INT+1+LSM6_2+1\n");
-         }
-         else
-         {
-            PRINT_FAST("$RSL,INT+1+LSM6_2+0\n");
-         }
-      break;
-   #endif /* NO_LSM6DSL */
-
-   #if (EN_LIS2MDL == 1)
-      case LIS2_INT:
-         if(u32Hal_GPIO_Read(LIS2_INT))
-         {
-            PRINT_FAST("$RSL,INT+1+LIS2+1\n");
-         }
-         else
-         {
-            PRINT_FAST("$RSL,INT+1+LIS2+0\n");
-         }
-      break;
-   #endif /* NO_LIS2MDL */
-
-   #if (EN_ST25DV == 1)
-      case ST25DV_GPO_INT:
-         if(u32Hal_GPIO_Read(ST25DV_GPO_INT))
-         {
-            PRINT_FAST("$RSL,INT+1+ST2DV+1\n");
-         }
-         else
-         {
-            PRINT_FAST("$RSL,INT+1+ST2DV+0\n");
-         }
-      break;
-   #endif /* NO_ST25DV */
-
-   #if (EN_LTC2943 == 1) 
-   #endif /* NO_LTC2943 */
-
-      default: /* Unknown Pin Interrupt */
-         PRINT_FAST("$RSL,INT+0+UNK\n");
-      break;
+      if(g_sIntHandler[l_u8Idx].fpvHandler != NULL)
+      {
+         (*g_sIntHandler[l_u8Idx].fpvHandler)(p_u32Pin, (e_IntMng_PolarityDetection_t)p_eAction);
+      }
    }
 }
 
+static inline e_IntMng_Error_t eFindIdx(uint32_t p_u32Pin,uint8_t * p_pu8Idx)
+{
+   e_IntMng_Error_t l_eError = INT_MNG_ERROR_PARAM;
+   uint8_t l_u8Idx = 0u;
+   
+   if(p_pu8Idx != NULL)
+   {      
+      while(   (g_sIntHandler[l_u8Idx].u32Pin != p_u32Pin) 
+                  && (l_u8Idx < MAX_INTERRUPT_NUM) )
+      {
+         l_u8Idx++;
+      }
+      
+      if(l_u8Idx < MAX_INTERRUPT_NUM)
+      {
+         (*p_pu8Idx) = l_u8Idx;
+         l_eError = INT_MNG_ERROR_NONE;
+      }
+      else
+      {
+         l_eError = INT_MNG_ERROR_NOT_FOUND;
+      }
+   }
+   
+   return l_eError;
+}
 
 /****************************************************************************************
  * End Of File

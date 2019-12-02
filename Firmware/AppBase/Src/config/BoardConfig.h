@@ -23,11 +23,36 @@
  ****************************************************************************************/
 // <h> Sensors Configuration
 //==========================================================
-// <q> BME280 Present
+
+// <e.0> BME280 Present
 // <i> The Bosch BME280 sensor measures temperature, pressure and humidity data.
+// <i> EN_BME280
 #ifndef EN_BME280
 #define EN_BME280 1
 #endif
+// <o> Temperature HighRes
+// <i> BME280_TEMPERATURE_RES - Select Resolution (Low Res, High Res)
+// <0=> LowRes 
+// <1=> HighRes
+#ifndef BME280_TEMPERATURE_RES
+#define BME280_TEMPERATURE_RES 0
+#endif
+// <o> Pressure HighRes
+// <i> BME280_PRESSURE_RES - Select Resolution (Low Res, High Res)
+// <0=> LowRes 
+// <1=> HighRes
+#ifndef BME280_PRESSURE_RES
+#define BME280_PRESSURE_RES 0
+#endif
+// <o> Humidity HighRes
+// <i> BME280_HUMIDITY_RES - Select Resolution (Low Res, High Res)
+// <0=> LowRes 
+// <1=> HighRes
+#ifndef BME280_HUMIDITY_RES
+#define BME280_HUMIDITY_RES 0
+#endif
+// </e> BLE EN_BME280
+
 // <q> MAX44009 Present
 // <i> The MAX44009 sensor measures brightness data.
 #ifndef EN_MAX44009
