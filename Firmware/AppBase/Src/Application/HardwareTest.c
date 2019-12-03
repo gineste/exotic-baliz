@@ -47,6 +47,7 @@
 #include "BME280/BME280.h"
 #include "ORG1510/ORG1510.h"
 #include "MAX44009/MAX44009.h"
+#include "MAX1720x/MAX1720x.h"
 #include "LSM6DSL/LSM6DSL.h"
 #include "LIS2MDL/LIS2MDL.h"
 #include "VEML6075/VEML6075.h"
@@ -176,8 +177,8 @@ static void vStartRTCTest(void);
 static void vStopRTCTest(void);
 static void vLPMTest(void);
 static void vBTL_Start(void);
-static void vINT_Configure(void);
-static void vINT_Clear(void);
+//static void vINT_Configure(void);
+//static void vINT_Clear(void);
       
 static void vHTTimeOutHandler(void * p_pvContext);
 static void vHTRTCHandler(void * p_pvContext);
@@ -192,6 +193,7 @@ static void vCfgADX(uint8_t * p_pu8Arg, uint8_t p_u8Size);
 static void vCfgLIS(uint8_t * p_pu8Arg, uint8_t p_u8Size);
 static void vCfgLSM(uint8_t * p_pu8Arg, uint8_t p_u8Size);
 static void vCfgORG(uint8_t * p_pu8Arg, uint8_t p_u8Size);
+static void vCfgMAX(uint8_t * p_pu8Arg, uint8_t p_u8Size);
 
 static inline void __segger_scanf(const char * format, void * pVal)
 {
@@ -341,7 +343,16 @@ static s_ST25DV_Context_t g_sST25DVContext = {
       .fp_vDelay_ms = &nrf_delay_ms,
    };
 #endif
-   
+#if (EN_MAX17205 == 1)
+   static s_MAX1720X_Context_t g_sMAX1720xContext = {
+      /* Function pointer to a read I2C transfer */
+      .fp_u32I2C_Write = &u32Hal_I2C_Write,
+      /* Function pointer to a write I2C transfer */
+      .fp_u32I2C_Read = &u32Hal_I2C_WriteAndReadNoStop,
+      /* Function pointer to a timer in ms */
+      .fp_vDelay_ms = &nrf_delay_ms,
+   };
+#endif
 #endif
 static uint8_t g_u8SPIInit = 0u;
 static uint8_t g_u8I2CInit = 0u;
@@ -649,15 +660,6 @@ static void vHT_NewTestProcess(e_HT_Commands_t p_eCmd, uint8_t * p_au8Arg, uint8
          break;
       case HT_CMD_INT:
          printf("$ACK,INT+1\n");
-//         if(g_u8INTCheck == 0u){
-//            vIntManagerInit();
-//            vINT_Configure();
-//            (void)eHal_Timer_Start(g_SensorUpdateIdx, INT_SENSOR_UPDATE);
-//            g_u8INTCheck = 1u;
-//         }
-//         else{
-//            vINT_Clear();
-//         }
          break;
       case HT_CMD_LPM:
          printf("$ACK,LPM+1\n");
@@ -2369,67 +2371,67 @@ static uint8_t u8BME_SingleShotRead(float *p_pfT, float *p_pfP, float *p_pfH)
 }
 
 
-static void vINT_Configure(void)
-{
-#if (EN_BME280 == 1)   
-#endif
-   
-#if (EN_MAX44009 == 1)
-   uint8_t l_u8Status = 0u;
-   (void)eMAX44009_InterruptStatusGet(&l_u8Status);
-   (void)eMAX44009_InterruptCfg(1u, 5000u, 50u, 1000u);
-#endif
-#if (EN_LSM6DSL == 1)
+//static void vINT_Configure(void)
+//{
+//#if (EN_BME280 == 1)   
+//#endif
+//   
+//#if (EN_MAX44009 == 1)
+//   uint8_t l_u8Status = 0u;
+//   (void)eMAX44009_InterruptStatusGet(&l_u8Status);
+//   (void)eMAX44009_InterruptCfg(1u, 5000u, 50u, 1000u);
+//#endif
+//#if (EN_LSM6DSL == 1)
 
-#endif
-#if (EN_LIS2MDL == 1)
-   (void)eLIS2MDL_ThresholdSet(800u);
-   (void)eLIS2MDL_InterruptCtrlSet(1u, LIS2MDL_INT_AXIS_XYZ, 1u, 0u);
-#endif
+//#endif
+//#if (EN_LIS2MDL == 1)
+//   (void)eLIS2MDL_ThresholdSet(800u);
+//   (void)eLIS2MDL_InterruptCtrlSet(1u, LIS2MDL_INT_AXIS_XYZ, 1u, 0u);
+//#endif
 
-#if (EN_VEML6075 == 1)
+//#if (EN_VEML6075 == 1)
 
-#endif
-   
-#if (EN_ST25DV == 1)
+//#endif
+//   
+//#if (EN_ST25DV == 1)
 
-#endif
-   
-#if (EN_LTC2943 == 1)
-#endif
+//#endif
+//   
+//#if (EN_LTC2943 == 1)
+//#endif
 
-}
+//}
 
-static void vINT_Clear(void)
-{
-   uint8_t l_u8Status = 0u;
-#if (EN_BME280 == 1)   
-#endif   
-#if (EN_MAX44009 == 1)
-   (void)eMAX44009_InterruptStatusGet(&l_u8Status);
-#endif
-#if (EN_LSM6DSL == 1)
-#endif
-#if (EN_LIS2MDL == 1)
-   uint8_t l_u8Int = 0u;
-   int8_t l_s8XAxis = 0;
-   int8_t l_s8YAxis = 0;
-   int8_t l_s8ZAxis = 0;
-   (void)eLIS2MDL_InterruptStatusGet(&l_s8XAxis, &l_s8YAxis, &l_s8ZAxis, &l_u8Int);
-#endif
-#if (EN_VEML6075 == 1)
-#endif   
-#if (EN_ST25DV == 1)
-#endif   
-#if (EN_LTC2943 == 1)
-#endif
-   
-}
+//static void vINT_Clear(void)
+//{
+//   uint8_t l_u8Status = 0u;
+//#if (EN_BME280 == 1)   
+//#endif   
+//#if (EN_MAX44009 == 1)
+//   (void)eMAX44009_InterruptStatusGet(&l_u8Status);
+//#endif
+//#if (EN_LSM6DSL == 1)
+//#endif
+//#if (EN_LIS2MDL == 1)
+//   uint8_t l_u8Int = 0u;
+//   int8_t l_s8XAxis = 0;
+//   int8_t l_s8YAxis = 0;
+//   int8_t l_s8ZAxis = 0;
+//   (void)eLIS2MDL_InterruptStatusGet(&l_s8XAxis, &l_s8YAxis, &l_s8ZAxis, &l_u8Int);
+//#endif
+//#if (EN_VEML6075 == 1)
+//#endif   
+//#if (EN_ST25DV == 1)
+//#endif   
+//#if (EN_LTC2943 == 1)
+//#endif
+//   
+//}
 static void vCfgSensor(uint8_t * p_pu8Arg, uint8_t p_u8Size)
 {
    uint8_t l_u8Len = strlen((char*)p_pu8Arg);
    
-   if(l_u8Len >= 6u)
+   if(l_u8Len >= 5u)
    {
       if((uint8_t*)strstr((char*)p_pu8Arg, ",") == (&p_pu8Arg[3u]))
       {
@@ -2469,6 +2471,12 @@ static void vCfgSensor(uint8_t * p_pu8Arg, uint8_t p_u8Size)
             {
                printf("$ACK,CFG+%s\n","0");
             }
+         }
+         else if(strstr((char*)p_pu8Arg, "MAX") != NULL)
+         {
+            printf("$ACK,CFG+%s\n","1");
+            l_u8Len = strlen((char*)&p_pu8Arg[4u]);
+            vCfgMAX(&p_pu8Arg[4u], l_u8Len);
          }
          else
          {
@@ -2732,6 +2740,58 @@ static void vCfgORG(uint8_t * p_pu8Arg, uint8_t p_u8Size)
             break;
       }
    }      
+}
+
+
+static void vCfgMAX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
+{   
+   uint8_t l_u8Success = 0u;
+   uint16_t l_u16Data = 0u;
+   
+   if(p_u8Size != 0u)
+   {
+      switch(p_pu8Arg[0u])
+      {
+         case 'c':
+            if(eMAX1720X_ContextSet(g_sMAX1720xContext) == MAX1720X_ERROR_NONE)
+            {
+               l_u8Success = 1u;
+            }
+            break;
+         case 'i':
+            if(eMAX1720X_Init() == MAX1720X_ERROR_NONE)
+            {
+               l_u8Success = 1u;
+            }
+            break;
+         case 's':
+            if(eMAX1720X_StatusGet(&l_u16Data) == MAX1720X_ERROR_NONE)
+            {
+               l_u8Success = 1u;
+            }
+            break;
+         case 't':
+            
+            if(eMAX1720X_TemperatureGet(&l_u16Data) == MAX1720X_ERROR_NONE)
+            {
+               printf("$RSL,CFG,MAX+t+%d\n",l_u16Data);
+               l_u8Success = 1u;
+            }
+            break;
+         case 'v':
+            
+            if(eMAX1720X_VCellGet(&l_u16Data) == MAX1720X_ERROR_NONE)
+            {
+               printf("$RSL,CFG,MAX+v+%d\n",l_u16Data);
+               l_u8Success = 1u;
+            }
+            break;
+         default:
+            break;
+      }
+   }  
+   
+   printf("$RSL,CFG,MAX+%1d\n",l_u8Success);
 }
 
 static void vStartSelfTest(uint8_t * p_pu8Arg, uint8_t p_u8Size)

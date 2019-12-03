@@ -500,6 +500,11 @@
               <FileType>1</FileType>
               <FilePath>.\Src\Drivers\LTC2943\LTC2943.c</FilePath>
             </File>
+            <File>
+              <FileName>MAX1720x.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Src\Drivers\MAX1720x\MAX1720x.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -1498,6 +1503,11 @@
               <FileName>LTC2943.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Src\Drivers\LTC2943\LTC2943.c</FilePath>
+            </File>
+            <File>
+              <FileName>MAX1720x.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Src\Drivers\MAX1720x\MAX1720x.c</FilePath>
             </File>
           </Files>
         </Group>

@@ -97,7 +97,7 @@
 // <q> MAX17205 Present
 // <i> The MAX17205 is a gauge sensor. It provides information on battery.
 #ifndef EN_MAX17205
-#define EN_MAX17205 0
+#define EN_MAX17205 1
 #endif
 #ifndef SENSOR_NUMBER
 #define SENSOR_NUMBER ( EN_LTC2943     +  \
