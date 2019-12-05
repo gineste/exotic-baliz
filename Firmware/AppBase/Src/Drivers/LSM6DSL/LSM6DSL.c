@@ -544,7 +544,7 @@ struct {
    e_LSM6DSL_Mode_t eMode;
 }g_sGyroCfg;
 
-static lsm6dsl_ctx_t g_sCtxlsm6dsl;
+//static lsm6dsl_ctx_t g_sCtxlsm6dsl;
 
 /****************************************************************************************
  * Public functions
@@ -571,8 +571,8 @@ e_LSM6DSL_Error_t eLSM6DSL_ContextSet(s_LSM6DSL_Context_t p_sContext)
       g_sLSM6DSLContext.sI2CCfg.fp_u32I2C_Read = p_sContext.sI2CCfg.fp_u32I2C_Read;
       g_sLSM6DSLContext.fp_vDelay_ms = p_sContext.fp_vDelay_ms;
 
-      g_sCtxlsm6dsl.write_reg = s32_write_ptr;
-      g_sCtxlsm6dsl.read_reg = s32_read_ptr;
+//      g_sCtxlsm6dsl.write_reg = s32_write_ptr;
+//      g_sCtxlsm6dsl.read_reg = s32_read_ptr;
       
       /* Check Sensor ID */
       if(eReadRegister(WHO_AM_I_REG, &l_u8Data, 1u) == LSM6DSL_ERROR_NONE)

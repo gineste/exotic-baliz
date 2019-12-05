@@ -2747,6 +2747,15 @@ static void vCfgMAX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
 {   
    uint8_t l_u8Success = 0u;
    uint16_t l_u16Data = 0u;
+   uint16_t l_u16Data1 = 0u;
+   uint16_t l_u16Data2 = 0u;
+   uint16_t l_u16Data3 = 0u;
+   uint16_t l_u16Data4 = 0u;
+   uint16_t l_u16DataX = 0u;
+   uint16_t l_u16DataAll = 0u;
+   int32_t l_s32Data = 0;
+   int32_t l_s32Data1 = 0;
+   int32_t l_s32Data2 = 0;
    
    if(p_u8Size != 0u)
    {
@@ -2770,19 +2779,33 @@ static void vCfgMAX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
                l_u8Success = 1u;
             }
             break;
-         case 't':
+         case 'T':
             
-            if(eMAX1720X_TemperatureGet(&l_u16Data) == MAX1720X_ERROR_NONE)
+            if(   (eMAX1720X_TemperatureGet(MAX1720X_TEMP_INT, &l_s32Data) == MAX1720X_ERROR_NONE)
+               && (eMAX1720X_TemperatureGet(MAX1720X_TEMP_1, &l_s32Data1) == MAX1720X_ERROR_NONE)
+               && (eMAX1720X_TemperatureGet(MAX1720X_TEMP_2, &l_s32Data2) == MAX1720X_ERROR_NONE) )
             {
-               printf("$RSL,CFG,MAX+t+%d\n",l_u16Data);
+               printf("$RSL,CFG,MAX+T+%d+%d+%d\n",l_s32Data);
                l_u8Success = 1u;
             }
             break;
-         case 'v':
-            
-            if(eMAX1720X_VCellGet(&l_u16Data) == MAX1720X_ERROR_NONE)
+         case 'V':            
+            if(   (eMAX1720X_VoltageGet(MAX1720X_CELL_1, &l_u16Data1) == MAX1720X_ERROR_NONE)
+               && (eMAX1720X_VoltageGet(MAX1720X_CELL_2, &l_u16Data2) == MAX1720X_ERROR_NONE)
+               && (eMAX1720X_VoltageGet(MAX1720X_CELL_3, &l_u16Data3) == MAX1720X_ERROR_NONE)
+               && (eMAX1720X_VoltageGet(MAX1720X_CELL_4, &l_u16Data4) == MAX1720X_ERROR_NONE)
+               && (eMAX1720X_VoltageGet(MAX1720X_CELL_X, &l_u16DataX) == MAX1720X_ERROR_NONE)
+               && (eMAX1720X_VoltageGet(MAX1720X_VBAT, &l_u16DataAll) == MAX1720X_ERROR_NONE) )
             {
-               printf("$RSL,CFG,MAX+v+%d\n",l_u16Data);
+               printf("$RSL,CFG,MAX+V+%d+%d+%d+%d+%d+%d\n",l_u16Data1,l_u16Data2,l_u16Data3,l_u16Data4,l_u16DataX,l_u16DataAll);
+               l_u8Success = 1u;
+            }
+            break;
+         case 'I':
+            
+            if(eMAX1720X_CurrentGet(&l_s32Data) == MAX1720X_ERROR_NONE)
+            {
+               printf("$RSL,CFG,MAX+I+%d\n",l_s32Data);
                l_u8Success = 1u;
             }
             break;

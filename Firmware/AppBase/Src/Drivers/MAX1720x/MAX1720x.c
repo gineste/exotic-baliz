@@ -32,6 +32,7 @@
 
 /* Useful registers to read */
 #define MAX1720X_REG_STATUS         (uint16_t)0x000
+#define MAX1720X_REG_STATUS2        (uint16_t)0x0B0
 #define MAX1720X_REG_VCELL          (uint16_t)0x009
 #define MAX1720X_REG_REPSOC         (uint16_t)0x006
 #define MAX1720X_REG_REPCAP         (uint16_t)0x005
@@ -39,10 +40,12 @@
 #define MAX1720X_REG_CURRENT        (uint16_t)0x00A
 #define MAX1720X_REG_TTE            (uint16_t)0x011
 #define MAX1720X_REG_TTF            (uint16_t)0x020
-/* Additional registers */
+#define MAX1720X_REG_DEVNAME        (uint16_t)0x021
+/* Additional read registers */
 #define MAX1720X_REG_CELL1          (uint16_t)0x0D8
 #define MAX1720X_REG_CELL2          (uint16_t)0x0D7
 #define MAX1720X_REG_CELL3          (uint16_t)0x0D6
+#define MAX1720X_REG_CELL4          (uint16_t)0x0D5
 #define MAX1720X_REG_CELLX          (uint16_t)0x0D9
 #define MAX1720X_REG_BATT           (uint16_t)0x0DA
 #define MAX1720X_REG_TEMP1          (uint16_t)0x134
@@ -64,15 +67,26 @@
 #define MAX1720X_REG_AVGTA          (uint16_t)0x016
 #define MAX1720X_REG_VRIPPLE        (uint16_t)0x0BC
 
+#define MAX1720X_REG_COMMAND        (uint16_t)0x060
+#define MAX1720X_REG_CONFIG2        (uint16_t)0x0BB
 
-#define MAX1720X_RSENSE_VAL         (float)0.620f
 
+#define MAX1720X_RSENSE_VAL         (float)620.0f
+#define CONTEXT_CHECK()          do {     \
+      if((g_u8CtxtSet != 1))              \
+      {                                   \
+         return MAX1720X_ERROR_CONTEXT;   \
+      }                                   \
+   }while(0);
+      
 #define EXIT_ERROR_CHECK(error)  do {     \
       if((error != MAX1720X_ERROR_NONE))  \
       {                                   \
          return error;                    \
       }                                   \
    }while(0);
+   
+#define WAIT_TIME_TPOR_MS           (uint32_t)15u
    
 /****************************************************************************************
  * Private type declarations
@@ -81,75 +95,76 @@
 /****************************************************************************************
  * Private function declarations
  ****************************************************************************************/
-static e_MAX1720X_Error_t eReadRegisters(uint16_t p_u16Register, uint16_t * p_pu16Value, uint8_t p_u8RegNumber);
+//static e_MAX1720X_Error_t eReadRegisters(uint16_t p_u16Register, uint16_t * p_pu16Value, uint8_t p_u8RegNumber);
 static e_MAX1720X_Error_t eReadRegister(uint16_t p_u16Register, uint16_t * p_pu16Value);
 static e_MAX1720X_Error_t eWriteRegister(uint16_t p_u16Register, uint16_t p_u16Data);
+static e_MAX1720X_Error_t eWriteBitsReg(uint16_t p_u16Register, uint16_t p_u16Value, uint16_t p_u16Pos, uint16_t p_u16Mask);
 
 /****************************************************************************************
  * Variable declarations
  ****************************************************************************************/
 #define START_ADDRESS_EZ_MODEL_CONFIG     0x180
 const uint16_t g_cau16EZModel[] = {
-   0x00F0,		//nXTable0 Register
-   0x0686,		//nXTable1 Register
-   0x071E,		//nXTable2 Register
-   0x06E2,		//nXTable3 Register
-   0x3AED,		//nXTable4 Register
-   0x3104,		//nXTable5 Register
-   0x1650,		//nXTable6 Register
-   0x1659,		//nXTable7 Register
-   0x0923,		//nXTable8 Register
-   0x0930,		//nXTable9 Register
-   0x0816,		//nXTable10 Register
-   0x06EE,		//nXTable11 Register
+   0x0000,		//nXTable0 Register
+   0x0000,		//nXTable1 Register
+   0x0000,		//nXTable2 Register
+   0x0000,		//nXTable3 Register
+   0x0000,		//nXTable4 Register
+   0x0000,		//nXTable5 Register
+   0x0000,		//nXTable6 Register
+   0x0000,		//nXTable7 Register
+   0x0000,		//nXTable8 Register
+   0x0000,		//nXTable9 Register
+   0x0000,		//nXTable10 Register
+   0x0000,		//nXTable11 Register
    0x0000,		//nUser18C Register
    0x0000,		//nUser18D Register
    0x0000,		//nODSCTh Register
    0x0000,		//nODSCCfg Register
-   0x961B,		//nOCVTable0 Register
-   0xAD16,		//nOCVTable1 Register
-   0xB2AB,		//nOCVTable2 Register
-   0xB8CB,		//nOCVTable3 Register
-   0xBADB,		//nOCVTable4 Register
-   0xBB28,		//nOCVTable5 Register
-   0xBC5C,		//nOCVTable6 Register
-   0xBDE2,		//nOCVTable7 Register
-   0xBF78,		//nOCVTable8 Register
-   0xC59D,		//nOCVTable9 Register
-   0xCC08,		//nOCVTable10 Register
-   0xD01A,		//nOCVTable11 Register
-   0x03C0,		//nIChgTerm Register
+   0x0000,		//nOCVTable0 Register
+   0x0000,		//nOCVTable1 Register
+   0x0000,		//nOCVTable2 Register
+   0x0000,		//nOCVTable3 Register
+   0x0000,		//nOCVTable4 Register
+   0x0000,		//nOCVTable5 Register
+   0x0000,		//nOCVTable6 Register
+   0x0000,		//nOCVTable7 Register
+   0x0000,		//nOCVTable8 Register
+   0x0000,		//nOCVTable9 Register
+   0x0000,		//nOCVTable10 Register
+   0x0000,		//nOCVTable11 Register
+   0x0000,		//nIChgTerm Register
    0x0000,		//nFilterCfg Register
    0x0000,		//nVEmpty Register
-   0xA602,		//nLearnCfg Register
-   0x42B2,		//nQRTable00 Register
-   0x3C18,		//nQRTable10 Register
-   0x390B,		//nQRTable20 Register
-   0x370B,		//nQRTable30 Register
+   0x0000,		//nLearnCfg Register
+   0x3C00,		//nQRTable00 Register
+   0x1B80,		//nQRTable10 Register
+   0x0B04,		//nQRTable20 Register
+   0x0885,		//nQRTable30 Register
    0x0000,		//nCycles Register
    0xFFFF,		//nFullCapNom Register
-   0x1070,		//nRComp0 Register
-   0x223E,		//nTempCo Register
+   0x0000,		//nRComp0 Register
+   0x0000,		//nTempCo Register
    0x0001,		//nIAvgEmpty Register
    0xFFFF,		//nFullCapRep Register
    0x0000,		//nVoltTemp Register
-   0x807F,		//nMaxMinCurr Register
-   0x00FF,		//nMaxMinVolt Register
-   0x807F,		//nMaxMinTemp Register
+   0x0000,		//nMaxMinCurr Register
+   0x0000,		//nMaxMinVolt Register
+   0x0000,		//nMaxMinTemp Register
    0x0000,		//nSOC Register
    0x0000,		//nTimerH Register
    0x0000,		//nConfig Register
-   0x0204,		//nRippleCfg Register
+   0x0000,		//nRippleCfg Register
    0x0000,		//nMiscCfg Register
    0xFFFF,		//nDesignCap Register
    0x0000,		//nHibCfg Register
-   0x0C03,		//nPackCfg Register
+   0x0F03,		//nPackCfg Register
    0x0000,		//nRelaxCfg Register
    0x2241,		//nConvgCfg Register
-   0xC190,		//nNVCfg0 Register
-   0x2006,		//nNVCfg1 Register
-   0xFE0A,		//nNVCfg2 Register
-   0x0002,		//nSBSCfg Register
+   0x0000,		//nNVCfg0 Register
+   0x0006,		//nNVCfg1 Register
+   0x0000,		//nNVCfg2 Register
+   0x0000,		//nSBSCfg Register
    0x0000,		//nROMID0 Register
    0x0000,		//nROMID1 Register
    0x0000,		//nROMID2 Register
@@ -160,10 +175,10 @@ const uint16_t g_cau16EZModel[] = {
    0x0000,		//nIAlrtTh Register
    0x0000,		//nUser1C4 Register
    0x0000,		//nUser1C5 Register
-   0x5505,		//nFullSOCThr Register
+   0x0000,		//nFullSOCThr Register
    0x0000,		//nTTFCfg Register
    0x0000,		//nCGain Register
-   0x0025,		//nTCurve Register
+   0x0000,		//nTCurve Register
    0x0000,		//nTGain Register
    0x0000,		//nTOff Register
    0x0000,		//nManfctrName0 Register
@@ -172,7 +187,7 @@ const uint16_t g_cau16EZModel[] = {
    0xF230,		//nRSense Register
    0x0000,		//nUser1D0 Register
    0x0000,		//nUser1D1 Register
-   0xD5E3,		//nAgeFcCfg Register
+   0x0000,		//nAgeFcCfg Register
    0x0000,		//nDesignVoltage Register
    0x0000,		//nUser1D4 Register
    0x0000,		//nRFastVShdn Register
@@ -188,6 +203,7 @@ const uint16_t g_cau16EZModel[] = {
    0x0000		//nDeviceName4 Register
 };
 
+
 s_MAX1720X_Context_t g_sMAX1720XContext;
 static uint8_t g_u8CtxtSet = 0u;
 
@@ -199,10 +215,12 @@ e_MAX1720X_Error_t eMAX1720X_ContextSet(s_MAX1720X_Context_t p_sContext)
    e_MAX1720X_Error_t l_eErrCode = MAX1720X_ERROR_PARAM;
    
    if(   (p_sContext.fp_u32I2C_Read != NULL)
-      && (p_sContext.fp_u32I2C_Write != NULL) )
+      && (p_sContext.fp_u32I2C_Write != NULL)
+      && (p_sContext.fp_vDelay_ms != NULL) )
    {
       g_sMAX1720XContext.fp_u32I2C_Read = p_sContext.fp_u32I2C_Read;
       g_sMAX1720XContext.fp_u32I2C_Write = p_sContext.fp_u32I2C_Write;
+      g_sMAX1720XContext.fp_vDelay_ms = p_sContext.fp_vDelay_ms;
       l_eErrCode = MAX1720X_ERROR_NONE;
       g_u8CtxtSet = 1u;
    }  
@@ -214,15 +232,41 @@ e_MAX1720X_Error_t eMAX1720X_Init(void)
 {   
    e_MAX1720X_Error_t l_eErrCode = MAX1720X_ERROR_INIT;
    uint8_t l_u8Idx = 0u;
-   uint8_t l_u8SizeModel = sizeof(g_cau16EZModel);
+   uint8_t l_u8SizeModel = (sizeof(g_cau16EZModel) / sizeof(g_cau16EZModel[0]));
+   uint16_t l_u16Data = 0u;
    
-   if(g_u8CtxtSet == 1u)
+   CONTEXT_CHECK();
+
+   /* Start by a reset of the device */
+   l_eErrCode = eWriteRegister(MAX1720X_REG_COMMAND,0x000F);
+   EXIT_ERROR_CHECK(l_eErrCode);
+   g_sMAX1720XContext.fp_vDelay_ms(WAIT_TIME_TPOR_MS);
+    l_eErrCode = eWriteRegister(MAX1720X_REG_CONFIG2,0x0001);
+   EXIT_ERROR_CHECK(l_eErrCode);
+   g_sMAX1720XContext.fp_vDelay_ms(WAIT_TIME_TPOR_MS);
+   
+   /* Read status2 */
+   l_eErrCode = eReadRegister(MAX1720X_REG_STATUS2, &l_u16Data);
+   EXIT_ERROR_CHECK(l_eErrCode);
+   if((l_u16Data & 0x8000) != 0x8000)
    {
-      for(l_u8Idx = 0u; l_u8Idx < l_u8SizeModel; l_u8Idx++)
-      {
-         l_eErrCode = eWriteRegister((START_ADDRESS_EZ_MODEL_CONFIG+l_u8Idx), g_cau16EZModel[l_u8Idx]);
-         EXIT_ERROR_CHECK(l_eErrCode);
-      }
+      l_eErrCode = eWriteBitsReg(0x01B8,0x0002,1,0x0002);
+      EXIT_ERROR_CHECK(l_eErrCode);
+   }      
+   
+   /* Init all structure */
+   for(l_u8Idx = 0u; l_u8Idx < l_u8SizeModel; l_u8Idx++)
+   {
+      l_eErrCode = eWriteRegister((START_ADDRESS_EZ_MODEL_CONFIG+l_u8Idx), g_cau16EZModel[l_u8Idx]);
+      EXIT_ERROR_CHECK(l_eErrCode);
+      g_sMAX1720XContext.fp_vDelay_ms(1u);
+   }
+   /* Check Device Name */
+   l_eErrCode = eReadRegister(MAX1720X_REG_DEVNAME, &l_u16Data);
+   EXIT_ERROR_CHECK(l_eErrCode);
+   if((l_u16Data&0x0F) != 5)
+   {
+      l_eErrCode = MAX1720X_ERROR_NOT_FOUND;
    }
    
    return l_eErrCode;
@@ -230,36 +274,118 @@ e_MAX1720X_Error_t eMAX1720X_Init(void)
 e_MAX1720X_Error_t eMAX1720X_StatusGet(uint16_t * p_pu16Status)
 {   
    e_MAX1720X_Error_t l_eErrCode = MAX1720X_ERROR_PARAM;
+   CONTEXT_CHECK();
    
-   if((p_pu16Status != NULL) && (g_u8CtxtSet == 1u))
+   if(p_pu16Status != NULL)
    {
       l_eErrCode = eReadRegister(MAX1720X_REG_STATUS, p_pu16Status);
    }
    
    return l_eErrCode;
 }
-e_MAX1720X_Error_t eMAX1720X_TemperatureGet(uint16_t * p_pu16Temp)
+e_MAX1720X_Error_t eMAX1720X_TemperatureGet(e_MAX1720X_Temperature_t p_eTemp, int32_t * p_ps32mTemp)
 {   
    e_MAX1720X_Error_t l_eErrCode = MAX1720X_ERROR_PARAM;
+   uint16_t l_u16Val = 0u;
+   uint16_t l_u16Reg = 0u;
+   CONTEXT_CHECK();
    
-   if((p_pu16Temp != NULL) && (g_u8CtxtSet == 1u))
+   if(p_ps32mTemp != NULL)
    {
-      l_eErrCode = eReadRegister(MAX1720X_REG_TEMP, p_pu16Temp);
+      switch(p_eTemp)
+      {
+         case MAX1720X_TEMP_INT:
+            l_u16Reg = MAX1720X_REG_INT_TEMP;
+            break;
+         case MAX1720X_TEMP_1:
+            l_u16Reg = MAX1720X_REG_TEMP1;
+            break;
+         case MAX1720X_TEMP_2:
+            l_u16Reg = MAX1720X_REG_TEMP2;
+            break;
+         default:
+            return l_eErrCode;
+      }
+      l_eErrCode = eReadRegister(l_u16Reg, &l_u16Val);
+      EXIT_ERROR_CHECK(l_eErrCode);
+      (*p_ps32mTemp) = ((int32_t)l_u16Val*1000) >> 8;
    }
    
    return l_eErrCode;
 }
-e_MAX1720X_Error_t eMAX1720X_VCellGet(uint16_t * p_pu16VCell)
-{   
+
+e_MAX1720X_Error_t eMAX1720X_VoltageGet(e_MAX1720X_Cell_t p_eCell, uint16_t * p_pu16mVolt)
+{
    e_MAX1720X_Error_t l_eErrCode = MAX1720X_ERROR_PARAM;
+   uint16_t l_u16Val = 0u;
+   uint16_t l_u16Reg = 0u;
+   CONTEXT_CHECK();
    
-   if((p_pu16VCell != NULL) && (g_u8CtxtSet == 1u))
+   if(p_pu16mVolt != NULL)
    {
-      l_eErrCode = eReadRegister(MAX1720X_REG_VCELL, p_pu16VCell);
+      switch(p_eCell)
+      {
+         case MAX1720X_CELL_1:
+            l_u16Reg = MAX1720X_REG_CELL1;
+            break;
+         case MAX1720X_CELL_2:
+            l_u16Reg = MAX1720X_REG_CELL2;
+            break;
+         case MAX1720X_CELL_3:
+            l_u16Reg = MAX1720X_REG_CELL3;
+            break;
+         case MAX1720X_CELL_4:
+            l_u16Reg = MAX1720X_REG_CELL4;
+            break;
+         case MAX1720X_CELL_X:
+            l_u16Reg = MAX1720X_REG_CELLX;
+            break;
+         case MAX1720X_VBAT:
+            l_u16Reg = MAX1720X_REG_BATT;
+            break;
+         default:
+            return l_eErrCode;            
+      }
+      
+      l_eErrCode = eReadRegister(l_u16Reg, &l_u16Val);
+      EXIT_ERROR_CHECK(l_eErrCode);
+      
+      if(p_eCell == MAX1720X_VBAT)
+      {
+         (*p_pu16mVolt) = (l_u16Val + (l_u16Val >> 2));	// 1.25mV / LSB
+      }
+      else
+      {
+         (*p_pu16mVolt) = (uint16_t)((((uint64_t)l_u16Val)*78125)/1000000); // Ratio 0.000078125 V / LSB
+      }
    }
    
-   return l_eErrCode;
+	return l_eErrCode;
 }
+
+e_MAX1720X_Error_t eMAX1720X_CurrentGet(int32_t * p_ps32uAmps)
+{
+   e_MAX1720X_Error_t l_eErrCode = MAX1720X_ERROR_PARAM;
+   uint16_t l_u16Val = 0u;
+   CONTEXT_CHECK();
+   
+   if(p_ps32uAmps != NULL)
+   {
+      l_eErrCode = eReadRegister(MAX1720X_REG_CURRENT, &l_u16Val);
+      EXIT_ERROR_CHECK(l_eErrCode);
+
+      (*p_ps32uAmps) = (int32_t)(((float)((int64_t)(l_u16Val)) * 15625.0f)/(10.0f*MAX1720X_RSENSE_VAL));
+   }
+   
+	return l_eErrCode;
+}
+
+
+
+
+
+
+
 
 e_MAX1720X_Error_t eMAX1720X_DebugWrite(uint16_t p_u16Register, uint16_t p_u16Data)
 {
@@ -279,33 +405,33 @@ e_MAX1720X_Error_t eMAX1720X_DebugRead(uint16_t p_u16Register,  uint16_t * p_pu1
  * @param[in] p_u8RegNumber
  * @return Error code
  */
-static e_MAX1720X_Error_t eReadRegisters(uint16_t p_u16Register, uint16_t * p_pu16Value, uint8_t p_u8RegNumber)
-{
-   e_MAX1720X_Error_t l_eErrCode = MAX1720X_ERROR_CONTEXT;
-   uint8_t l_u8I2CAddr = (p_u16Register >= 0x100)?MAX1720X_I2C_ADDR_HIGH:MAX1720X_I2C_ADDR_LOW;
-   uint8_t l_u8Idx = 0u;
-   uint8_t l_au8ReadData[2u] = { 0u };
-   uint8_t l_au8RegData[2u] = { 0u };
-   l_au8RegData[0u] = (p_u16Register & 0xFF00)>>8;
-   l_au8RegData[1u] = (p_u16Register & 0x00FF);
+//static e_MAX1720X_Error_t eReadRegisters(uint16_t p_u16Register, uint16_t * p_pu16Value, uint8_t p_u8RegNumber)
+//{
+//   e_MAX1720X_Error_t l_eErrCode = MAX1720X_ERROR_CONTEXT;
+//   uint8_t l_u8I2CAddr = (p_u16Register >= 0x100)?MAX1720X_I2C_ADDR_HIGH:MAX1720X_I2C_ADDR_LOW;
+//   uint8_t l_u8Idx = 0u;
+//   uint8_t l_au8ReadData[2u] = { 0u };
+//   uint8_t l_au8RegData[2u] = { 0u };
+//   l_au8RegData[0u] = (p_u16Register & 0xFF00)>>8;
+//   l_au8RegData[1u] = (p_u16Register & 0x00FF);
 
-   if( (g_sMAX1720XContext.fp_u32I2C_Read != NULL) & (p_pu16Value != NULL) )
-   {
-      for(l_u8Idx = 0u; l_u8Idx < p_u8RegNumber; l_u8Idx++)
-      {
-         if((*g_sMAX1720XContext.fp_u32I2C_Read)(l_u8I2CAddr, l_au8RegData, 2u, l_au8ReadData, 2u) == 0u)
-         {
-            p_pu16Value[l_u8Idx] = ((uint16_t)l_au8ReadData[0u] << 8) + (uint16_t)l_au8ReadData[1u];
-            l_eErrCode = MAX1720X_ERROR_NONE;
-         }
-         else
-         {
-            l_eErrCode = MAX1720X_ERROR_COMM;
-         }
-      }
-   }   
-   return l_eErrCode;
-}
+//   if( (g_sMAX1720XContext.fp_u32I2C_Read != NULL) & (p_pu16Value != NULL) )
+//   {
+//      for(l_u8Idx = 0u; l_u8Idx < p_u8RegNumber; l_u8Idx++)
+//      {
+//         if((*g_sMAX1720XContext.fp_u32I2C_Read)(l_u8I2CAddr, l_au8RegData, 2u, l_au8ReadData, 2u) == 0u)
+//         {
+//            p_pu16Value[l_u8Idx] = ((uint16_t)l_au8ReadData[0u] << 8) + (uint16_t)l_au8ReadData[1u];
+//            l_eErrCode = MAX1720X_ERROR_NONE;
+//         }
+//         else
+//         {
+//            l_eErrCode = MAX1720X_ERROR_COMM;
+//         }
+//      }
+//   }   
+//   return l_eErrCode;
+//}
 static e_MAX1720X_Error_t eReadRegister(uint16_t p_u16Register, uint16_t * p_pu16Value)
 {
    e_MAX1720X_Error_t l_eErrCode = MAX1720X_ERROR_CONTEXT;
@@ -352,6 +478,25 @@ static e_MAX1720X_Error_t eWriteRegister(uint16_t p_u16Register, uint16_t p_u16D
       {
          l_eErrCode = MAX1720X_ERROR_COMM;
       }
+   }
+
+   return l_eErrCode;
+}
+
+static e_MAX1720X_Error_t eWriteBitsReg(uint16_t p_u16Register, uint16_t p_u16Value, uint16_t p_u16Pos, uint16_t p_u16Mask)
+{
+   uint16_t l_u16RegVal = 0u;
+   e_MAX1720X_Error_t l_eErrCode = MAX1720X_ERROR_CONTEXT;
+   
+   l_eErrCode = eReadRegister(p_u16Register, &l_u16RegVal); 
+
+   if(l_eErrCode == MAX1720X_ERROR_NONE)
+   {
+      l_u16RegVal &= ~p_u16Mask;
+          
+      l_u16RegVal |= ((uint8_t)p_u16Value << p_u16Pos);
+
+      l_eErrCode = eWriteRegister(p_u16Register, l_u16RegVal);
    }
 
    return l_eErrCode;
