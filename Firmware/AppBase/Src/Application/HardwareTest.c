@@ -104,8 +104,7 @@
 #define HT_FLAG_INT2_ADXL        0x0020
 #define HT_FLAG_INT1_LSM6        0x0040
 #define HT_FLAG_INT2_LSM6        0x0080
-#define HT_FLAG_INT1_LIS2        0x0100
-#define HT_FLAG_INT2_LIS2        0x0200
+#define HT_FLAG_INT_LIS2         0x0100
 
 #define HT_SET_FLAG(flag)     do {              \
             g_u32Flags |= (flag);               \
@@ -182,7 +181,7 @@ static void vBTL_Start(void);
       
 static void vHTTimeOutHandler(void * p_pvContext);
 static void vHTRTCHandler(void * p_pvContext);
-static void vHTSensorUpdateHandler(void * p_pvContext);
+//static void vHTSensorUpdateHandler(void * p_pvContext);
 
 static void vGPSInit(void);
 static uint8_t u8BME_SingleShotRead(float *p_pfT, float *p_pfP, float *p_pfH);
@@ -216,6 +215,7 @@ void vStartSelfTest(uint8_t * p_pu8Arg, uint8_t p_u8Size);
 static void vStartADXLSelfTest(void);
 static void vADXLSelfTestIntHandler(uint32_t p_u32IntPin, e_IntMng_PolarityDetection_t p_ePolarity);
 static void vStartLIS2SelfTest(void);
+static void vLIS2SelfTestIntHandler(uint32_t p_u32IntPin, e_IntMng_PolarityDetection_t p_ePolarity);
 static void vStartLSM6SelfTest(void);
 
 /****************************************************************************************
@@ -367,9 +367,9 @@ static uint8_t g_u8StopTest = 0u;
 static uint8_t g_u8TestInProgress = 0u;
 static uint8_t g_u8I2CInitSensors = 0u;
 static uint8_t g_u8RTCCheck = 0u;   
-static uint8_t g_u8INTCheck = 0u;   
+//static uint8_t g_u8INTCheck = 0u;   
    
-static uint8_t g_u8UpdateSensor = 0u;
+//static uint8_t g_u8UpdateSensor = 0u;
    
 static uint8_t g_u8BLERadioInit = 0u;
 static uint8_t g_u8BLERadioChannel = 0u;
@@ -379,7 +379,7 @@ static uint8_t g_u8SigFoxCWTest = 0u;
 
 HAL_TIMER_DEF(g_TimeOutTestIdx);
 HAL_TIMER_DEF(g_RTCTestIdx);
-HAL_TIMER_DEF(g_SensorUpdateIdx);
+//HAL_TIMER_DEF(g_SensorUpdateIdx);
 
 /* Must be in the same order of e_HT_Commands_t */
 const char g_cachCmd[HT_CMD_LAST][CMD_FRAME_SIZE+1u] = {
@@ -429,16 +429,21 @@ void vHT_PrintHelp(void)
    printf("RTC: Start/Stop Timer RTC\n");
    printf("CFG: Configure Sensors\n");
    printf("SPI: Check SPI ADXL362\n");
+#if (BALIZ_V < 3)
    printf("RAX: Read SPI ADXL362\n");
+#endif
    printf("I2C: Init I2C Layer\n");
    printf("ISS: Init All I2C Sensors\n");
    printf("RSS: Read All I2C Sensors\n");   
    printf("LED: Check LED (Visual)\n");
+#if (BALIZ_V < 3)
    printf("BUZ: Check Buzzer (Audio)\n");
+#endif
    printf("NFC: Write Data on \n");
    printf("INT: Initialize/Clear Interrupt\n");
    printf("LPM: Lowest Power Mode Set\n");
    printf("BTL: Put Device in Bootloader for Firmware Update\n");
+   printf("SFT: Self Test + ADXL or LSM6 or LIS2\n");
    printf("HLP: Print Help\n");
    printf("RST: RESET\n");
 }
@@ -447,7 +452,7 @@ void vHT_Init(void)
 {
    (void)eHal_Timer_Create(&g_TimeOutTestIdx, HAL_TIMER_MODE_SINGLE_SHOT, &vHTTimeOutHandler);
    (void)eHal_Timer_Create(&g_RTCTestIdx, HAL_TIMER_MODE_REPEATED, &vHTRTCHandler);   
-   (void)eHal_Timer_Create(&g_SensorUpdateIdx, HAL_TIMER_MODE_REPEATED, &vHTSensorUpdateHandler);   
+//   (void)eHal_Timer_Create(&g_SensorUpdateIdx, HAL_TIMER_MODE_REPEATED, &vHTSensorUpdateHandler);   
 }
 
 void vHT_CheckInput(uint8_t * p_au8Frame, uint8_t p_u8Size)
@@ -515,34 +520,40 @@ void vHT_BackgroundProcess(void)
    }
    else if(HT_CHECK_FLAG(HT_FLAG_SELFTEST_LIS2))
    {
-      HT_CLEAR_FLAG(HT_FLAG_SELFTEST_LIS2);
+      if(HT_CHECK_FLAG(HT_FLAG_INT_LIS2))
+      {
+         HT_CLEAR_FLAG(HT_FLAG_INT_LIS2);
+         HT_CLEAR_FLAG(HT_FLAG_SELFTEST_LIS2);
+         printf("$RSL,SFT+LIS2+1\n");
+         (void)eIntMngr_Delete(LIS2_INT);
+      }
    }
    else
    {
    }
    
-   if( (g_u8INTCheck == 1u) && (g_u8UpdateSensor == 1u) )
-   {
-      if(g_u8I2CInitSensors == 1u)
-      { 
-         #if (EN_BME280 == 1)
-         #endif
-         
-         #if (EN_MAX44009 == 1)  
-         #endif
-         
-//         #if (EN_LSM6DSL == 1)
-//            (void)eLSM6DSL_AccelRead();
-//            (void)eLSM6DSL_GyroRead();
+//   if( (g_u8INTCheck == 1u) && (g_u8UpdateSensor == 1u) )
+//   {
+//      if(g_u8I2CInitSensors == 1u)
+//      { 
+//         #if (EN_BME280 == 1)
 //         #endif
-         
-         #if (EN_LIS2MDL == 1)
-            (void)eLIS2MDL_MagneticRead();
-         #endif
-      }
-      
-      g_u8UpdateSensor = 0u;
-   }
+//         
+//         #if (EN_MAX44009 == 1)  
+//         #endif
+//         
+////         #if (EN_LSM6DSL == 1)
+////            (void)eLSM6DSL_AccelRead();
+////            (void)eLSM6DSL_GyroRead();
+////         #endif
+//         
+//         #if (EN_LIS2MDL == 1)
+//            (void)eLIS2MDL_MagneticRead();
+//         #endif
+//      }
+//      
+//      g_u8UpdateSensor = 0u;
+//   }
 }
 
 /****************************************************************************************
@@ -2025,10 +2036,10 @@ static void vHTTimeOutHandler(void * p_pvContext)
    g_u8StopTest = 1u;   
 }
 
-static void vHTSensorUpdateHandler(void * p_pvContext)
-{
-   g_u8UpdateSensor = 1u;
-}
+//static void vHTSensorUpdateHandler(void * p_pvContext)
+//{
+//   g_u8UpdateSensor = 1u;
+//}
 
 static void vHTRTCHandler(void * p_pvContext)
 {
@@ -2039,7 +2050,7 @@ static void vHTRTCHandler(void * p_pvContext)
       #error "Board version not supported!"
    #endif
 }  
-#define QUALIF_GPS
+//#define QUALIF_GPS
 static void vGPSInit(void)
 {      
 #ifndef QUALIF_GPS
@@ -2052,6 +2063,9 @@ static void vGPSInit(void)
       SM_GPS_WAIT_ACK_GLP,
       SM_GPS_CMD_HDOP,
       SM_GPS_WAIT_ACK_HDOP,
+      SM_GPS_CMD_SBAS,
+      SM_GPS_WAIT_ACK_SBAS,
+      SM_GPS_WAIT_ACK_DGPS,
       SM_GPS_CMD_PRIORITY,
       SM_GPS_WAIT_ACK_PRIORITY,
       SM_GPS_CMD_CONSTELLATION,
@@ -2060,6 +2074,9 @@ static void vGPSInit(void)
       SM_GPS_WAIT_ACK_STATIC_NAV,
       SM_GPS_CMD_SENTENCE,
       SM_GPS_WAIT_ACK_SENTENCE,
+      SM_GPS_CMD_PERIODIC,
+      SM_GPS_WAIT_ACK_PERIODIC,
+      SM_GPS_WAIT_FIX,
 //      SM_GPS_IDLE,
       SM_GPS_FINISHED = 0xFF
    }l_eIdxState = SM_GPS_INIT;
@@ -2095,33 +2112,56 @@ static void vGPSInit(void)
                if(   (l_sACK.u16Type == 10) 
                   && (/*(l_sACK.u16Cmd == 1) ||*/ (l_sACK.u16Cmd == 2)) )
                {
-                  l_eIdxState = SM_GPS_CMD_GLP;
+                  l_eIdxState = SM_GPS_CMD_SBAS;
                   vORG1510_Version();
                }
             }
             break;
-         case SM_GPS_CMD_GLP:
+         case SM_GPS_CMD_SBAS:
             vNMEA_PMTKGet(&l_sACK);
             if(l_sACK.u16Type == 705)
             {
-               vORG1510_GLP(1u);
-               l_eIdxState = SM_GPS_WAIT_ACK_GLP;
+               vORG1510_SBAS(1u);
+               l_eIdxState = SM_GPS_WAIT_ACK_SBAS;
             }
             break;
-         case SM_GPS_WAIT_ACK_GLP:
+         case SM_GPS_WAIT_ACK_SBAS:
             vNMEA_PMTKGet(&l_sACK);
-            if((l_sACK.u16Cmd == 262) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
+            if((l_sACK.u16Cmd == 313) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
+            {
+               vORG1510_SetDGPS(2u);
+               l_eIdxState = SM_GPS_WAIT_ACK_DGPS;
+            }
+            break;
+         case SM_GPS_WAIT_ACK_DGPS:
+            vNMEA_PMTKGet(&l_sACK);
+            if((l_sACK.u16Cmd == 301) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
             {
                l_eIdxState = SM_GPS_CMD_HDOP;
             }
             break;
+//         case SM_GPS_CMD_GLP:
+//            vNMEA_PMTKGet(&l_sACK);
+//            if(l_sACK.u16Type == 705)
+//            {
+//               vORG1510_GLP(1u);
+//               l_eIdxState = SM_GPS_WAIT_ACK_GLP;
+//            }
+//            break;
+//         case SM_GPS_WAIT_ACK_GLP:
+//            vNMEA_PMTKGet(&l_sACK);
+//            if((l_sACK.u16Cmd == 262) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
+//            {
+//               l_eIdxState = SM_GPS_CMD_HDOP;
+//            }
+//            break;
          case SM_GPS_CMD_HDOP:
-            vORG1510_HDOPThresholdSet(25);
+//            vORG1510_HDOPThresholdSet(25);
             l_eIdxState = SM_GPS_WAIT_ACK_HDOP;
             break;
          case SM_GPS_WAIT_ACK_HDOP:
-            vNMEA_PMTKGet(&l_sACK);
-            if(l_sACK.u16Type == 356)
+//            vNMEA_PMTKGet(&l_sACK);
+//            if(l_sACK.u16Type == 356)
             {
                l_eIdxState = SM_GPS_CMD_PRIORITY;
             }
@@ -2144,7 +2184,7 @@ static void vGPSInit(void)
 //            
 //            if( (l_sACK.u16Type == 10) && (l_sACK.u16Cmd == 2) )
             {
-               vORG1510_Constellation(1,0,1,0);
+               vORG1510_Constellation(1,1,1,0);
                l_eIdxState = SM_GPS_WAIT_ACK_CONSTELLATION;
             }
             break;
@@ -2160,8 +2200,8 @@ static void vGPSInit(void)
 //            
 //            if( (l_sACK.u16Type == 10) && (l_sACK.u16Cmd == 2) )
             {
-               vORG1510_SentencesUpdate(  0,1,0,0,
-                                          0,0,0,0,
+               vORG1510_SentencesUpdate(  0,0,0,1,
+                                          1,0,0,0,
                                           0,0,0,0);
                l_eIdxState = SM_GPS_WAIT_ACK_SENTENCE;
             }
@@ -2181,10 +2221,32 @@ static void vGPSInit(void)
             vNMEA_PMTKGet(&l_sACK);
             if((l_sACK.u16Cmd == 386) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
             {
-               l_eIdxState = SM_GPS_FINISHED;
-//               eUartMngt_StateSet(USM_IDLE);
+               l_eIdxState = SM_GPS_WAIT_FIX;
             }
             break;
+         case SM_GPS_WAIT_FIX:
+         {
+            uint8_t l_u8IsFixed = 0u;
+            vNMEA_IsFixed(&l_u8IsFixed);
+            if(l_u8IsFixed == 1u)
+            {
+               l_eIdxState = SM_GPS_CMD_PERIODIC;
+            }
+         }
+            break;
+         case SM_GPS_CMD_PERIODIC:
+//            vORG1510_AlwaysLocate(1u);
+            vORG1510_PeriodicModeSet(2, SEC_TO_MS(10), MIN_TO_MS(2), SEC_TO_MS(50), MIN_TO_MS(2));
+            l_eIdxState = SM_GPS_WAIT_ACK_PERIODIC;
+            break;
+         case SM_GPS_WAIT_ACK_PERIODIC:
+            vNMEA_PMTKGet(&l_sACK);
+            if((l_sACK.u16Cmd == 225) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
+            {
+               l_eIdxState = SM_GPS_FINISHED;
+            }
+            break;
+               
 //         case SM_GPS_IDLE:
 //            vNMEA_PMTKGet(&l_sACK);
 //            if((l_sACK.u16Cmd == 225) && (l_sACK.eAck == PMTK_ACK_VALID_PCK_ACT_SUCCEEDED))
@@ -2849,7 +2911,7 @@ static void vStartADXLSelfTest(void)
    #define MAX_Y     (int32_t)-50
    
    s_IntMng_Context_t l_sInterruptCxt;
-   const uint32_t l_s32SampleNb = 16;
+   const int32_t l_s32SampleNb = 16;
    int16_t l_s16X = 0;
    int16_t l_s16Y = 0;
    int16_t l_s16Z = 0;
@@ -3101,10 +3163,128 @@ static void vLSM6SelfTestIntHandler(uint32_t p_u32IntPin, e_IntMng_PolarityDetec
 }
 static void vStartLIS2SelfTest(void)
 {
+   
+#if (EN_LIS2MDL == 1)
+   #define ST_LIS2_MIN_POS		(int32_t)15
+   #define ST_LIS2_MAX_POS		(int32_t)500
+   
+   s_IntMng_Context_t l_sInterruptCxt;
+   const int32_t l_s32SampleNb = 50;
+   int16_t l_s16X = 0;
+   int16_t l_s16Y = 0;
+   int16_t l_s16Z = 0;
+   int32_t l_s32X = 0;
+   int32_t l_s32Y = 0;
+   int32_t l_s32Z = 0;
+   int32_t l_s32XST = 0;
+   int32_t l_s32YST = 0;
+   int32_t l_s32ZST = 0;
+   int32_t l_s32XRes = 0;
+   int32_t l_s32YRes = 0;
+   int32_t l_s32ZRes = 0;
+   uint8_t l_u8Idx = 0u;
+   uint8_t l_u8Error = 255u;
+#endif
+
+   if(g_u8I2CInit == 1u)
+   {
+      /* Start LIS2 Self Test */   
+#if (EN_LIS2MDL == 1)      
+      l_sInterruptCxt.u32Pin = LIS2_INT;
+      l_sInterruptCxt.ePullMode = HALGPIO_PIN_NOPULL;
+      l_sInterruptCxt.ePolarityDetection = INT_POL_DTCT_TOGGLE;
+      l_sInterruptCxt.fpvHandler = &vLIS2SelfTestIntHandler;
+      
+      if(eIntMngr_Add(l_sInterruptCxt) != INT_MNG_ERROR_NONE)
+      {
+         printf("$RSL,INT+LIS2+0\n");
+      }
+      
+      if(eLIS2MDL_ContextSet(g_sLIS2Context) == LIS2MDL_ERROR_NONE)
+      {
+         if(eLIS2MDL_SoftReset() == LIS2MDL_ERROR_NONE)
+         {
+            vHal_Timer_DelayMs(100u); // reset delay
+            if(   (eLIS2MDL_DbgWriteReg(0x60, 0x8C) == LIS2MDL_ERROR_NONE)
+               && (eLIS2MDL_DbgWriteReg(0x61, 0x02) == LIS2MDL_ERROR_NONE)
+               && (eLIS2MDL_DbgWriteReg(0x62, 0x10) == LIS2MDL_ERROR_NONE) )
+            {
+               vHal_Timer_DelayMs(20u); // wait for first data
+               eLIS2MDL_MagneticRead(); // will check ZYXDA status...
+               for(l_u8Idx = 0u;l_u8Idx<l_s32SampleNb;l_u8Idx++)
+               {
+                  if(eLIS2MDL_MagneticRead() == LIS2MDL_ERROR_NONE)
+                  {
+                     eLIS2MDL_MagDataGet(&l_s16X, &l_s16Y, &l_s16Z);
+                     l_s32X += l_s16X;
+                     l_s32Y += l_s16Y;
+                     l_s32Z += l_s16Z;
+                  }
+                  vHal_Timer_DelayMs(1u);
+               }
+               /* Compute Avg */
+               l_s32X = (int16_t)(l_s32X / l_s32SampleNb);
+               l_s32Y = (int16_t)(l_s32Y / l_s32SampleNb);
+               l_s32Z = (int16_t)(l_s32Z / l_s32SampleNb);
+               
+               // Enable Self Test and DRDY on PIN
+               if(eLIS2MDL_DbgWriteReg(0x62, 0x13) == ADXL362_ERROR_NONE)
+               {
+                  vHal_Timer_DelayMs(20u); // wait for first data
+                  // will check ZYXDA status...
+                  eLIS2MDL_MagneticRead();
+                  for(l_u8Idx = 0u;l_u8Idx<l_s32SampleNb;l_u8Idx++)
+                  {
+                     if(eLIS2MDL_MagneticRead() == LIS2MDL_ERROR_NONE)
+                     {
+                        eLIS2MDL_MagDataGet(&l_s16X, &l_s16Y, &l_s16Z);
+                        l_s32XST += l_s16X;
+                        l_s32YST += l_s16Y;
+                        l_s32ZST += l_s16Z;
+                     }
+                     vHal_Timer_DelayMs(1u);
+                  }
+                  /* Compute Avg ST */
+                  l_s32XST = (int16_t)(l_s32XST / l_s32SampleNb);
+                  l_s32YST = (int16_t)(l_s32YST / l_s32SampleNb);
+                  l_s32ZST = (int16_t)(l_s32ZST / l_s32SampleNb);
+                  
+                  if(eLIS2MDL_DbgWriteReg(0x62, 0x10) == LIS2MDL_ERROR_NONE)
+                  {
+                     if(eLIS2MDL_DbgWriteReg(0x60, 0x83) == LIS2MDL_ERROR_NONE)
+                     {
+                        /* Compute result */
+                        l_s32XRes = (int16_t)(l_s32XST - l_s32X);
+                        l_s32YRes = (int16_t)(l_s32YST - l_s32Y);
+                        l_s32ZRes = (int16_t)(l_s32ZST - l_s32Z);
+                        
+                        if(   (ST_LIS2_MIN_POS <= l_s32XRes) && (l_s32XRes <= ST_LIS2_MAX_POS)
+                           && (ST_LIS2_MIN_POS <= l_s32YRes) && (l_s32YRes <= ST_LIS2_MAX_POS)
+                           && (ST_LIS2_MIN_POS <= l_s32ZRes) && (l_s32ZRes <= ST_LIS2_MAX_POS) )
+                        {
+                           l_u8Error = 0u;
+                        }
+                     }
+                  }
+               }
+            }
+         }
+      }
+   #endif
+   }
+   
+   if(l_u8Error == 0u)
+   {
+      HT_SET_FLAG(HT_FLAG_SELFTEST_LIS2);
+   }
+   else
+   {
+      printf("$RSL,SFT+LIS2+0\n");
+   }
 }
 static void vLIS2SelfTestIntHandler(uint32_t p_u32IntPin, e_IntMng_PolarityDetection_t p_ePolarity)
 {
-   HT_SET_FLAG(HT_FLAG_SELFTEST_LIS2);
+   HT_SET_FLAG(HT_FLAG_INT_LIS2);
 }
 
 /****************************************************************************************

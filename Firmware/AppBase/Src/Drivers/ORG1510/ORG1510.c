@@ -527,7 +527,21 @@ void vORG1510_SolutionPriority(uint8_t p_u8TTFForHPA)
       (*g_sORG1510Context.fp_vTimerDelay_ms_t)(RESPONSE_DELAY_MS);
    }
 }
+/**@brief   Activate AlwaysLocate mode of MT3333/ORG1510 GPS.
+ * @param[in] p_u8Enable 1 to enable, 0 to disable
+ * @return None
+ */
+void vORG1510_AlwaysLocate(uint8_t p_u8Enable)
+{
+   char l_achCmd[20u] = "$PMTK225,";
 
+   if(g_u8ORG1510Initialized == 1u)
+   {
+      (p_u8Enable != 0u) ? strcat(l_achCmd, "9*22\r\n\0") : strcat(l_achCmd, "0*2B\r\n\0");
+      (void)(*g_sORG1510Context.fp_u32UART_Write_t)((uint8_t*)l_achCmd, strlen(l_achCmd));
+      (*g_sORG1510Context.fp_vTimerDelay_ms_t)(RESPONSE_DELAY_MS);
+   }
+}
 /**@brief   Option to test command, checksum is automaticaly computed do not include '*' and checksum.
  *          Note : Max Size of full sentence is 100 chars !
  * @param[in] p_pau8Sentence Pointer to the sentence's array

@@ -20,6 +20,7 @@
  ****************************************************************************************/
 #include <stdint.h>
 #include <string.h>
+#include "GlobalDefs.h"
 
 /* Self include */
 #include "MAX1720x.h"
@@ -232,11 +233,20 @@ e_MAX1720X_Error_t eMAX1720X_Init(void)
 {   
    e_MAX1720X_Error_t l_eErrCode = MAX1720X_ERROR_INIT;
    uint8_t l_u8Idx = 0u;
+   uint16_t l_u16Idx = 0u;
    uint8_t l_u8SizeModel = (sizeof(g_cau16EZModel) / sizeof(g_cau16EZModel[0]));
    uint16_t l_u16Data = 0u;
    
    CONTEXT_CHECK();
 
+   for(l_u16Idx = 0u; l_u16Idx < 0x100; l_u16Idx++)
+   {
+      l_eErrCode = eReadRegister(l_u16Idx, &l_u16Data);
+      EXIT_ERROR_CHECK(l_eErrCode);
+      g_sMAX1720XContext.fp_vDelay_ms(1u);
+      PRINT_CUSTOM("0x%02X: x%04X\n",l_u16Idx, l_u16Data);
+   }
+   
    /* Start by a reset of the device */
    l_eErrCode = eWriteRegister(MAX1720X_REG_COMMAND,0x000F);
    EXIT_ERROR_CHECK(l_eErrCode);
