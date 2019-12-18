@@ -78,6 +78,8 @@
 /* Self include */
 #include "HardwareTest.h"
 
+//#define QUALIF_GPS
+
 /****************************************************************************************
  * Defines
  ****************************************************************************************/
@@ -115,7 +117,7 @@
          }while(0);
 
 #define HT_CHECK_FLAG(flag)   ((g_u32Flags & (flag)) == (flag))?1u:0u
-         
+
 /****************************************************************************************
  * Private type declarations
  ****************************************************************************************/
@@ -176,12 +178,15 @@ static void vStartRTCTest(void);
 static void vStopRTCTest(void);
 static void vLPMTest(void);
 static void vBTL_Start(void);
-//static void vINT_Configure(void);
-//static void vINT_Clear(void);
       
 static void vHTTimeOutHandler(void * p_pvContext);
 static void vHTRTCHandler(void * p_pvContext);
-//static void vHTSensorUpdateHandler(void * p_pvContext);
+
+#ifdef QUALIF_GPS
+   static void vQualifGPSTimeOutHandler(void * p_pvContext);
+   #define QUALIF_GPS_TIME_PART_0   (uint32_t)MIN_TO_MS(10u)
+   #define QUALIF_GPS_TIME_PART_1   (uint32_t)MIN_TO_MS(5u)
+#endif
 
 static void vGPSInit(void);
 static uint8_t u8BME_SingleShotRead(float *p_pfT, float *p_pfP, float *p_pfH);
@@ -217,6 +222,7 @@ static void vADXLSelfTestIntHandler(uint32_t p_u32IntPin, e_IntMng_PolarityDetec
 static void vStartLIS2SelfTest(void);
 static void vLIS2SelfTestIntHandler(uint32_t p_u32IntPin, e_IntMng_PolarityDetection_t p_ePolarity);
 static void vStartLSM6SelfTest(void);
+static void vLSM6SelfTestIntHandler(uint32_t p_u32IntPin, e_IntMng_PolarityDetection_t p_ePolarity);
 
 /****************************************************************************************
  * Variable declarations
@@ -367,9 +373,6 @@ static uint8_t g_u8StopTest = 0u;
 static uint8_t g_u8TestInProgress = 0u;
 static uint8_t g_u8I2CInitSensors = 0u;
 static uint8_t g_u8RTCCheck = 0u;   
-//static uint8_t g_u8INTCheck = 0u;   
-   
-//static uint8_t g_u8UpdateSensor = 0u;
    
 static uint8_t g_u8BLERadioInit = 0u;
 static uint8_t g_u8BLERadioChannel = 0u;
@@ -379,7 +382,6 @@ static uint8_t g_u8SigFoxCWTest = 0u;
 
 HAL_TIMER_DEF(g_TimeOutTestIdx);
 HAL_TIMER_DEF(g_RTCTestIdx);
-//HAL_TIMER_DEF(g_SensorUpdateIdx);
 
 /* Must be in the same order of e_HT_Commands_t */
 const char g_cachCmd[HT_CMD_LAST][CMD_FRAME_SIZE+1u] = {
@@ -408,6 +410,11 @@ const char g_cachCmd[HT_CMD_LAST][CMD_FRAME_SIZE+1u] = {
 };
 
 static uint32_t g_u32Flags = 0u;
+
+#ifdef QUALIF_GPS
+   HAL_TIMER_DEF(g_sQualifGPSTimerIdx);
+#endif
+
 /****************************************************************************************
  * Public functions
  ****************************************************************************************/ 
@@ -452,7 +459,9 @@ void vHT_Init(void)
 {
    (void)eHal_Timer_Create(&g_TimeOutTestIdx, HAL_TIMER_MODE_SINGLE_SHOT, &vHTTimeOutHandler);
    (void)eHal_Timer_Create(&g_RTCTestIdx, HAL_TIMER_MODE_REPEATED, &vHTRTCHandler);   
-//   (void)eHal_Timer_Create(&g_SensorUpdateIdx, HAL_TIMER_MODE_REPEATED, &vHTSensorUpdateHandler);   
+#ifdef QUALIF_GPS   
+   (void)eHal_Timer_Create(&g_sQualifGPSTimerIdx, HAL_TIMER_MODE_SINGLE_SHOT, &vQualifGPSTimeOutHandler);
+#endif
 }
 
 void vHT_CheckInput(uint8_t * p_au8Frame, uint8_t p_u8Size)
@@ -515,6 +524,8 @@ void vHT_BackgroundProcess(void)
          HT_CLEAR_FLAG(HT_FLAG_INT1_LSM6);
          HT_CLEAR_FLAG(HT_FLAG_INT2_LSM6);
          HT_CLEAR_FLAG(HT_FLAG_SELFTEST_LSM6);
+         (void)eIntMngr_Delete(LSM6_INT1);
+         (void)eIntMngr_Delete(LSM6_INT2);
          printf("$RSL,SFT+LSM6+1\n");
       }
    }
@@ -531,29 +542,6 @@ void vHT_BackgroundProcess(void)
    else
    {
    }
-   
-//   if( (g_u8INTCheck == 1u) && (g_u8UpdateSensor == 1u) )
-//   {
-//      if(g_u8I2CInitSensors == 1u)
-//      { 
-//         #if (EN_BME280 == 1)
-//         #endif
-//         
-//         #if (EN_MAX44009 == 1)  
-//         #endif
-//         
-////         #if (EN_LSM6DSL == 1)
-////            (void)eLSM6DSL_AccelRead();
-////            (void)eLSM6DSL_GyroRead();
-////         #endif
-//         
-//         #if (EN_LIS2MDL == 1)
-//            (void)eLIS2MDL_MagneticRead();
-//         #endif
-//      }
-//      
-//      g_u8UpdateSensor = 0u;
-//   }
 }
 
 /****************************************************************************************
@@ -718,7 +706,6 @@ static void vStartLEDTest(void)
 #if (BALIZ_V < 3)
 static void vStartBuzzerTest(void)
 {
-   //vBuzzerSeqCmd();
    vBuzzerStartSequence(1u);
    while(u8BuzzerIsStopped() != 1u);
    printf("$RSL,BUZ+?\n");
@@ -792,10 +779,6 @@ static void vStartI2CSensorsInitTest(void)
       printf("$RSL,ISS+0+BME280\n");
       return;
    }
-//   else
-//   {
-//      printf("$RSL,ISS+1+BME280\n");
-//   }
    
 #endif
 #if (EN_MAX44009 == 1)  
@@ -815,10 +798,6 @@ static void vStartI2CSensorsInitTest(void)
       printf("$RSL,ISS+0+MAX44009\n");
       return;
    }
-//   else
-//   {
-//      printf("$RSL,ISS+1+MAX44009\n");
-//   }
 #endif
 #if (EN_LSM6DSL == 1)
    l_u8Error = 1u;
@@ -840,10 +819,6 @@ static void vStartI2CSensorsInitTest(void)
       printf("$RSL,ISS+0+LSM6DSL\n");
       return;
    }
-//   else
-//   {
-//      printf("$RSL,ISS+1+LSM6DSL\n");
-//   }
 #endif
 #if (EN_LIS2MDL == 1)
    l_u8Error = 1u;
@@ -864,12 +839,7 @@ static void vStartI2CSensorsInitTest(void)
    {
       printf("$RSL,ISS+0+LIS2MDL\n");
       return;
-   }
-//   else
-//   {
-//      printf("$RSL,ISS+1+LIS2MDL\n");
-//   }
-   
+   }   
 #endif
 
 #if (EN_VEML6075 == 1)
@@ -883,10 +853,6 @@ static void vStartI2CSensorsInitTest(void)
       printf("$RSL,ISS+0+ST25DV\n");
       return;
    }
-//   else
-//   {
-//      printf("$RSL,ISS+0+ST25DV\n");
-//   }
 #endif
    
 #if (EN_LTC2943 == 1)
@@ -905,10 +871,6 @@ static void vStartI2CSensorsInitTest(void)
       printf("$RSL,ISS+0+LTC2943\n");
       return;
    }
-//   else
-//   {
-//      printf("$RSL,ISS+1+LTC2943\n");
-//   }
 #endif
    
    printf("$RSL,ISS+1\n");
@@ -1133,7 +1095,6 @@ static void vStartI2CSensorsReadTest(void)
          {
             if(eMAX44009_BrightnessGet(&l_u32Brightness) == MAX44009_ERROR_NONE)
             {
-//               PRINT_DEBUG("L : %d Lux\n", l_u32Brightness);
                sprintf(l_achData, ", L=%d", l_u32Brightness);
                strcat(l_achDataResult, l_achData);
                l_u8Error = 0u;
@@ -1144,10 +1105,6 @@ static void vStartI2CSensorsReadTest(void)
             printf("$RSL,RSS+0+MAX44009\n");
             return;
          }
-//         else
-//         {
-//            printf("$RSL,RSS+1+MAX44009\n");
-//         }
       #endif
       
       #if (EN_LSM6DSL == 1)
@@ -1192,58 +1149,29 @@ static void vStartI2CSensorsReadTest(void)
             printf("$RSL,RSS+0+LSM6DSL\n");
             return;
          }
-//         else
-//         {
-//            printf("$RSL,RSS+1+LSM6DSL\n");
-//         }
       #endif
       
       #if (EN_LIS2MDL == 1)
          l_u8Error = 1u;
-//         if(eLIS2MDL_TemperatureRead() == LIS2MDL_ERROR_NONE)
-//         {
-//            if(eLIS2MDL_TempDataGet(&l_s16X) == LIS2MDL_ERROR_NONE)
-//            {
-//               PRINT_DEBUG("T : %d\n", l_s16X);
-//            }
-//         }
-//         if(l_u8Error == 0u)
-//         {
-//            l_u8Error = 1u;
-            if(eLIS2MDL_MagneticRead() == LIS2MDL_ERROR_NONE)
+         if(eLIS2MDL_MagneticRead() == LIS2MDL_ERROR_NONE)
+         {
+            if(eLIS2MDL_MagDataGet(&l_s16X, &l_s16Y, &l_s16Z) == LIS2MDL_ERROR_NONE)
             {
-               if(eLIS2MDL_MagDataGet(&l_s16X, &l_s16Y, &l_s16Z) == LIS2MDL_ERROR_NONE)
-               {
 //                  PRINT_DEBUG("Mag X : %d G, ", l_s16X);
 //                  PRINT_DEBUG("Mag Y : %d G, ", l_s16Y);
 //                  PRINT_DEBUG("Mag Z : %d G\n", l_s16Z);
-                  sprintf(l_achData, ", Mag=%d, %d, %d", l_s16X,l_s16Y,l_s16Z);
-                  strcat(l_achDataResult, l_achData);
-                  l_u8Error = 0u;
-               }
+               sprintf(l_achData, ", Mag=%d, %d, %d", l_s16X,l_s16Y,l_s16Z);
+               strcat(l_achDataResult, l_achData);
+               l_u8Error = 0u;
             }
-//         }
+         }
          if(l_u8Error == 1u)
          {
             printf("$RSL,RSS+0+LIS2MDL\n");
             return;
          }
-//         else
-//         {
-//            printf("$RSL,RSS+1+LIS2MDL\n");
-//         }
       #endif
-      
-      #if (EN_VEML6075 == 1)
-//      uint8_t l_u8Index = 0xFFu;
-//      PRINT_DEBUG("%s","VEML6075 Test: ");
-//      vVEML6075_Configure();
-//      vVEML6075_PollingProcess();
-//      (void)eVEML6075_UVIndexGet(&l_u8Index);
-//      PRINT_DEBUG("UV Index %d\n",l_u8Index);
-//      nrf_delay_ms(DELAY_SENSORS_READ);
-      #endif
-      
+            
       #if (EN_ST25DV == 1)
       
       #endif
@@ -1257,18 +1185,8 @@ static void vStartI2CSensorsReadTest(void)
          {
             if(eLTC2943_SensorRead(ADC_SENSOR_VOLTAGE_MASK | ADC_SENSOR_CURRENT_MASK) == LTC2943_ERROR_NONE)
             {
-//               if(eLTC2943_TemperatureGet(&l_s16X) == LTC2943_ERROR_NONE)
-//               {
-//                  PRINT_DEBUG("T : %d\n", l_s16X);
-//               }
-//               else
-//               {
-//                  l_u8Error += 1u;
-//               }
-               
                if(eLTC2943_AccumulatedChargeGet(&l_s16Y) == LTC2943_ERROR_NONE)
                {
-//                  PRINT_DEBUG("Acc I : %d mA\n", l_s16Y);
                   sprintf(l_achData, ", Iacc=%d", l_s16Y);
                   strcat(l_achDataResult, l_achData);
                }
@@ -1279,7 +1197,6 @@ static void vStartI2CSensorsReadTest(void)
                   
                if(eLTC2943_VoltageGet(&l_u16Volt) == LTC2943_ERROR_NONE)
                {
-//                  PRINT_DEBUG("V : %d mV\n", l_u16Volt);
                   sprintf(l_achData, ", V=%d", l_u16Volt);
                   strcat(l_achDataResult, l_achData);
                }
@@ -1302,10 +1219,6 @@ static void vStartI2CSensorsReadTest(void)
             printf("$RSL,RSS+0+LTC2943\n");
             return;
          }
-//         else
-//         {
-//            printf("$RSL,RSS+1+LTC2943\n");
-//         }
       #endif
      
    printf("%s\n",l_achDataResult);
@@ -1820,13 +1733,8 @@ static void vStopRadioBLETest(void)
    {
       (void)nrf_sdh_disable_request();
       (void)nrf_sdh_enable_request();
-//      printf("$RSL,BLE+2\n");      
    }
-   else
-   {
-//      printf("$RSL,BLE+2\n");
-   }
-      printf("$RSL,BLE+1\n");
+   printf("$RSL,BLE+1\n");
 }
 
 
@@ -1851,7 +1759,6 @@ static void vSweepRadioBLEChTest(void)
 
    NRF_RADIO->TASKS_TXEN = 1;
 
-//   PRINT_DEBUG("BLE Radio Channel %d\n",g_u8BLERadioChannelSweep);
    printf("$RSL,SWP+?,CH=%d\n",g_u8BLERadioChannelSweep);
 }
 
@@ -2036,11 +1943,6 @@ static void vHTTimeOutHandler(void * p_pvContext)
    g_u8StopTest = 1u;   
 }
 
-//static void vHTSensorUpdateHandler(void * p_pvContext)
-//{
-//   g_u8UpdateSensor = 1u;
-//}
-
 static void vHTRTCHandler(void * p_pvContext)
 {
    #if (BALIZ_V == 2)
@@ -2050,9 +1952,30 @@ static void vHTRTCHandler(void * p_pvContext)
       #error "Board version not supported!"
    #endif
 }  
-//#define QUALIF_GPS
+
+#ifdef QUALIF_GPS
+static void vQualifGPSTimeOutHandler(void * p_pvContext)
+{
+   static uint8_t l_u8Part = 0u;
+   
+   if(l_u8Part == 1u)
+   {
+      l_u8Part = 0u;
+      // Stop GPS Test
+      eUartMngt_StateSet(USM_IDLE);
+      g_u8TestInProgress = 0u;
+   }
+   else if((g_u8TestInProgress == 1u) && (eUartMngt_StateGet() == USM_GPS))
+   {     
+      l_u8Part++;
+      (void)eHal_Timer_Start(g_sQualifGPSTimerIdx, MIN_TO_MS(QUALIF_GPS_TIME_PART_1));
+      // Activate GPS Constellation
+      vORG1510_Constellation(1,0,0,0);
+   }
+}
+#endif
 static void vGPSInit(void)
-{      
+{
 #ifndef QUALIF_GPS
    static uint8_t l_u8FirstInit = 1u;
 #endif
@@ -2091,7 +2014,8 @@ static void vGPSInit(void)
             /* Clear previous PMTK response */
             vNMEA_PMTKClear();
             eUartMngt_StateSet(USM_GPS);
-      #ifdef QUALIF_GPS
+      #ifdef QUALIF_GPS         
+         (void)eHal_Timer_Start(g_sQualifGPSTimerIdx, MIN_TO_MS(QUALIF_GPS_TIME_PART_0));
          l_eIdxState = SM_GPS_FINISHED;
       #else
          if(l_u8FirstInit == 1u)
@@ -3053,7 +2977,7 @@ static void vADXLSelfTestIntHandler(uint32_t p_u32IntPin, e_IntMng_PolarityDetec
 static void vStartLSM6SelfTest(void)
 {
 #if (EN_LSM6DSL == 1)
-   //s_IntMng_Context_t l_sInterruptCxt;
+   s_IntMng_Context_t l_sInterruptCxt;
    const int32_t l_s32SampleNb = 5;
    int16_t l_s16X = 0;
    int16_t l_s16Y = 0;
@@ -3074,7 +2998,23 @@ static void vStartLSM6SelfTest(void)
    #define ST_LSM6_MAX_POS		1700
    
    if(g_u8I2CInit == 1u)
-   {
+   { 
+      l_sInterruptCxt.u32Pin = LSM6_INT1;
+      l_sInterruptCxt.ePullMode = HALGPIO_PIN_NOPULL;
+      l_sInterruptCxt.ePolarityDetection = INT_POL_DTCT_TOGGLE;
+      l_sInterruptCxt.fpvHandler = &vLSM6SelfTestIntHandler;
+      
+      if(eIntMngr_Add(l_sInterruptCxt) != INT_MNG_ERROR_NONE)
+      {
+         printf("$RSL,INT1+LSM6+0\n");
+      }
+      
+      l_sInterruptCxt.u32Pin = LSM6_INT2;      
+      if(eIntMngr_Add(l_sInterruptCxt) != INT_MNG_ERROR_NONE)
+      {
+         printf("$RSL,INT2+LSM6+0\n");
+      }
+      
       if(eLSM6DSL_ContextSet(g_sLSM6Context) == LSM6DSL_ERROR_NONE)
       {
          if(   (eLSM6_DebugWrite(0x10,0x38) == 0u)
@@ -3159,7 +3099,8 @@ static void vStartLSM6SelfTest(void)
 }
 static void vLSM6SelfTestIntHandler(uint32_t p_u32IntPin, e_IntMng_PolarityDetection_t p_ePolarity)
 {
-   HT_SET_FLAG(HT_FLAG_SELFTEST_LSM6);
+   HT_SET_FLAG(HT_FLAG_INT1_LSM6);
+   HT_SET_FLAG(HT_FLAG_INT2_LSM6);
 }
 static void vStartLIS2SelfTest(void)
 {
