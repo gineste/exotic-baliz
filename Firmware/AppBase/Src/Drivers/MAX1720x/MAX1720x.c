@@ -238,14 +238,6 @@ e_MAX1720X_Error_t eMAX1720X_Init(void)
    uint16_t l_u16Data = 0u;
    
    CONTEXT_CHECK();
-
-   for(l_u16Idx = 0u; l_u16Idx < 0x100; l_u16Idx++)
-   {
-      l_eErrCode = eReadRegister(l_u16Idx, &l_u16Data);
-      EXIT_ERROR_CHECK(l_eErrCode);
-      g_sMAX1720XContext.fp_vDelay_ms(1u);
-      PRINT_CUSTOM("0x%02X: x%04X\n",l_u16Idx, l_u16Data);
-   }
    
    /* Start by a reset of the device */
    l_eErrCode = eWriteRegister(MAX1720X_REG_COMMAND,0x000F);
@@ -254,6 +246,22 @@ e_MAX1720X_Error_t eMAX1720X_Init(void)
     l_eErrCode = eWriteRegister(MAX1720X_REG_CONFIG2,0x0001);
    EXIT_ERROR_CHECK(l_eErrCode);
    g_sMAX1720XContext.fp_vDelay_ms(WAIT_TIME_TPOR_MS);
+   
+   for(l_u16Idx = START_ADDRESS_EZ_MODEL_CONFIG; l_u16Idx < (START_ADDRESS_EZ_MODEL_CONFIG + (uint16_t)l_u8SizeModel)/*0x1E0*/; l_u16Idx++)
+   {
+      l_eErrCode = eReadRegister((START_ADDRESS_EZ_MODEL_CONFIG+l_u16Idx), &l_u16Data);
+      EXIT_ERROR_CHECK(l_eErrCode);
+      g_sMAX1720XContext.fp_vDelay_ms(1u);
+      PRINT_CUSTOM("0x%03X: x%04X\n",l_u16Idx, l_u16Data);
+   }
+   
+//   /* Start by a reset of the device */
+//   l_eErrCode = eWriteRegister(MAX1720X_REG_COMMAND,0x000F);
+//   EXIT_ERROR_CHECK(l_eErrCode);
+//   g_sMAX1720XContext.fp_vDelay_ms(WAIT_TIME_TPOR_MS);
+//    l_eErrCode = eWriteRegister(MAX1720X_REG_CONFIG2,0x0001);
+//   EXIT_ERROR_CHECK(l_eErrCode);
+//   g_sMAX1720XContext.fp_vDelay_ms(WAIT_TIME_TPOR_MS);
    
    /* Read status2 */
    l_eErrCode = eReadRegister(MAX1720X_REG_STATUS2, &l_u16Data);
@@ -271,6 +279,15 @@ e_MAX1720X_Error_t eMAX1720X_Init(void)
       EXIT_ERROR_CHECK(l_eErrCode);
       g_sMAX1720XContext.fp_vDelay_ms(1u);
    }
+   
+   for(l_u16Idx = START_ADDRESS_EZ_MODEL_CONFIG; l_u16Idx < 0x1E0; l_u16Idx++)
+   {
+      l_eErrCode = eReadRegister((START_ADDRESS_EZ_MODEL_CONFIG+l_u16Idx), &l_u16Data);
+      EXIT_ERROR_CHECK(l_eErrCode);
+      g_sMAX1720XContext.fp_vDelay_ms(1u);
+      PRINT_CUSTOM("0x%03X: x%04X\n",l_u16Idx, l_u16Data);
+   }
+   
    /* Check Device Name */
    l_eErrCode = eReadRegister(MAX1720X_REG_DEVNAME, &l_u16Data);
    EXIT_ERROR_CHECK(l_eErrCode);
@@ -454,7 +471,7 @@ static e_MAX1720X_Error_t eReadRegister(uint16_t p_u16Register, uint16_t * p_pu1
    {
       if((*g_sMAX1720XContext.fp_u32I2C_Read)(l_u8I2CAddr, l_au8RegData, 1u, l_au8ReadData, 2u) == 0u)
       {
-         (*p_pu16Value) = ((uint16_t)l_au8ReadData[0u] << 8) + (uint16_t)l_au8ReadData[1u];
+         (*p_pu16Value) = ((uint16_t)l_au8ReadData[1u] << 8) + (uint16_t)l_au8ReadData[0u];
          l_eErrCode = MAX1720X_ERROR_NONE;
       }
       else

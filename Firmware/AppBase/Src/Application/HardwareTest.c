@@ -56,7 +56,6 @@
 #include "AxSigFox/AxSigFox.h"
 
 /* Lib Include */
-#include <nrf_delay.h>
 #include "Libraries/AT.h"
 #include "Libraries/SimpleLED.h"
 #include "Libraries/Buzzer.h"
@@ -276,7 +275,7 @@ static void vLSM6SelfTestIntHandler(uint32_t p_u32IntPin, e_IntMng_PolarityDetec
       .eI2CAddress = MAX44009_ADDR1,               /* Sensor Address */
       .fp_u32I2C_Read = &u32Hal_I2C_WriteAndRead,  /* Function pointer to a read I2C transfer */
       .fp_u32I2C_Write = &u32Hal_I2C_Write,        /* Function pointer to a write I2C transfer */
-      .fp_vDelay_ms = &nrf_delay_ms,               /* Function pointer to a timer in ms */
+      .fp_vDelay_ms = &vHal_Timer_DelayMs,               /* Function pointer to a timer in ms */
    };
 #endif
 
@@ -291,7 +290,7 @@ static void vLSM6SelfTestIntHandler(uint32_t p_u32IntPin, e_IntMng_PolarityDetec
       .fp_u32I2C_Read = &u32Hal_I2C_WriteAndReadNoStop,
    },
    /* Function pointer to a timer in ms */
-   .fp_vDelay_ms = &nrf_delay_ms,
+   .fp_vDelay_ms = &vHal_Timer_DelayMs,
 };
 #endif
 
@@ -305,13 +304,13 @@ static void vLSM6SelfTestIntHandler(uint32_t p_u32IntPin, e_IntMng_PolarityDetec
       .fp_u32I2C_Read = &u32Hal_I2C_WriteAndReadNoStop,
    },
    /* Function pointer to a timer in ms */
-   .fp_vDelay_ms = &nrf_delay_ms,
+   .fp_vDelay_ms = &vHal_Timer_DelayMs,
 };
 #endif
 
 #if (EN_ORG1510 == 1)
    static s_ORG1510_Context_t g_sORG1510Context = {
-      .fp_vTimerDelay_ms_t = &nrf_delay_ms,
+      .fp_vTimerDelay_ms_t = &vHal_Timer_DelayMs,
       .fp_u8UART_Read_t = &u8Hal_UART_Read,
       .fp_u32UART_Write_t = &u32Hal_UART_Write,
       .fp_vGPIO_Set_t = &vHal_GPIO_Set,
@@ -334,7 +333,7 @@ static s_ST25DV_Context_t g_sST25DVContext = {
       /* Function pointer for a write I2C transfer */
       .fp_u32I2C_Read = &u32Hal_I2C_WriteAndReadNoStop,
       /* Function pointer to a timer in ms */
-      .fp_vDelay_ms = &nrf_delay_ms,
+      .fp_vDelay_ms = &vHal_Timer_DelayMs,
       /* Config */
       .eEepromSize = ST25DV_EEPROM_SIZE_64K,
    };
@@ -346,7 +345,7 @@ static s_ST25DV_Context_t g_sST25DVContext = {
       /* Function pointer to a write I2C transfer */
       .fp_u32I2C_Read = &u32Hal_I2C_WriteAndReadNoStop,
       /* Function pointer to a timer in ms */
-      .fp_vDelay_ms = &nrf_delay_ms,
+      .fp_vDelay_ms = &vHal_Timer_DelayMs,
    };
 #endif
 #if (EN_MAX17205 == 1)
@@ -354,9 +353,9 @@ static s_ST25DV_Context_t g_sST25DVContext = {
       /* Function pointer to a read I2C transfer */
       .fp_u32I2C_Write = &u32Hal_I2C_Write,
       /* Function pointer to a write I2C transfer */
-      .fp_u32I2C_Read = &u32Hal_I2C_WriteAndReadNoStop,
+      .fp_u32I2C_Read = &u32Hal_I2C_WriteAndRead,
       /* Function pointer to a timer in ms */
-      .fp_vDelay_ms = &nrf_delay_ms,
+      .fp_vDelay_ms = &vHal_Timer_DelayMs,
    };
 #endif
 #endif
@@ -2739,11 +2738,13 @@ static void vCfgMAX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
    uint16_t l_u16Data4 = 0u;
    uint16_t l_u16DataX = 0u;
    uint16_t l_u16DataAll = 0u;
+   uint32_t l_u32Reg = 0u;
+   uint32_t l_u32Data = 0u;
    int32_t l_s32Data = 0;
    int32_t l_s32Data1 = 0;
    int32_t l_s32Data2 = 0;
    
-   if(p_u8Size != 0u)
+   if( (p_u8Size != 0u) && (g_u8I2CInit != 0u) )
    {
       switch(p_pu8Arg[0u])
       {
@@ -2762,11 +2763,11 @@ static void vCfgMAX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
          case 's':
             if(eMAX1720X_StatusGet(&l_u16Data) == MAX1720X_ERROR_NONE)
             {
+               PRINT_CUSTOM("Status x%04X\n", l_u16Data);
                l_u8Success = 1u;
             }
             break;
-         case 'T':
-            
+         case 'T':            
             if(   (eMAX1720X_TemperatureGet(MAX1720X_TEMP_INT, &l_s32Data) == MAX1720X_ERROR_NONE)
                && (eMAX1720X_TemperatureGet(MAX1720X_TEMP_1, &l_s32Data1) == MAX1720X_ERROR_NONE)
                && (eMAX1720X_TemperatureGet(MAX1720X_TEMP_2, &l_s32Data2) == MAX1720X_ERROR_NONE) )
@@ -2787,11 +2788,28 @@ static void vCfgMAX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
                l_u8Success = 1u;
             }
             break;
-         case 'I':
-            
+         case 'I':            
             if(eMAX1720X_CurrentGet(&l_s32Data) == MAX1720X_ERROR_NONE)
             {
                printf("$RSL,CFG,MAX+I+%d\n",l_s32Data);
+               l_u8Success = 1u;
+            }
+            break;
+         case 'r':        
+            sscanf( (char*)&p_pu8Arg[2u], "%x", &l_u32Reg);
+            l_u16Data = (uint16_t)l_u32Reg;
+            if(eMAX1720X_DebugRead(l_u16Data,&l_u16Data1) == MAX1720X_ERROR_NONE)
+            {
+               printf("$RSL,CFG,MAX+r+x%03X:x%04X\n",l_u16Data,l_u16Data1);
+               l_u8Success = 1u;
+            }
+            break;
+         case 'w':         
+            sscanf( (char*)&p_pu8Arg[2u], "%x , %x[^\n]", &l_u32Reg , &l_u32Data );   
+            l_u16Data = (uint16_t)l_u32Reg;
+            l_u16Data1 = (uint16_t)l_u32Data;
+            if(eMAX1720X_DebugWrite(l_u16Data, l_u16Data1) == MAX1720X_ERROR_NONE)
+            {
                l_u8Success = 1u;
             }
             break;
