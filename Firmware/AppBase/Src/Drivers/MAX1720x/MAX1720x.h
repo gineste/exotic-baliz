@@ -16,7 +16,8 @@
 /****************************************************************************************
  * Include Files
  ****************************************************************************************/
- 
+#include <stdint.h>
+
 /****************************************************************************************
  * Defines
  ****************************************************************************************/
@@ -63,6 +64,8 @@ typedef struct _MAX1720X_CONTEXT_ {
  ****************************************************************************************/
 e_MAX1720X_Error_t eMAX1720X_ContextSet(s_MAX1720X_Context_t p_sContext);
 e_MAX1720X_Error_t eMAX1720X_Init(void);
+e_MAX1720X_Error_t eMAX1720X_ReadRAM(void);
+e_MAX1720X_Error_t eMAX1720X_ReadShadowRAM(void);
 e_MAX1720X_Error_t eMAX1720X_StatusGet(uint16_t * p_pu16Status);
 e_MAX1720X_Error_t eMAX1720X_TemperatureGet(e_MAX1720X_Temperature_t p_eTemp, int32_t * p_ps32mTemp);
 e_MAX1720X_Error_t eMAX1720X_VoltageGet(e_MAX1720X_Cell_t p_eCell, uint16_t * p_pu16mVolt);

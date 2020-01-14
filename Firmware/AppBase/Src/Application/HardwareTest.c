@@ -353,7 +353,7 @@ static s_ST25DV_Context_t g_sST25DVContext = {
       /* Function pointer to a read I2C transfer */
       .fp_u32I2C_Write = &u32Hal_I2C_Write,
       /* Function pointer to a write I2C transfer */
-      .fp_u32I2C_Read = &u32Hal_I2C_WriteAndRead,
+      .fp_u32I2C_Read = &u32Hal_I2C_WriteAndReadNoStop,
       /* Function pointer to a timer in ms */
       .fp_vDelay_ms = &vHal_Timer_DelayMs,
    };
@@ -2809,6 +2809,19 @@ static void vCfgMAX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
             l_u16Data = (uint16_t)l_u32Reg;
             l_u16Data1 = (uint16_t)l_u32Data;
             if(eMAX1720X_DebugWrite(l_u16Data, l_u16Data1) == MAX1720X_ERROR_NONE)
+            {
+               l_u8Success = 1u;
+            }
+            break;
+            
+         case 'x': 
+            if(eMAX1720X_ReadShadowRAM() == MAX1720X_ERROR_NONE)
+            {
+               l_u8Success = 1u;
+            }
+            break;
+         case 'a': 
+            if(eMAX1720X_ReadRAM() == MAX1720X_ERROR_NONE)
             {
                l_u8Success = 1u;
             }
