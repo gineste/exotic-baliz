@@ -306,7 +306,7 @@ static void vUSM_SigFoxExit(void)
 }
 
 static void vUSM_GpsEntry(void)
-{
+{   
    /* Configure UART for GPS */
    vHal_UART_Configure(g_sUartGPSCfg_t);
    

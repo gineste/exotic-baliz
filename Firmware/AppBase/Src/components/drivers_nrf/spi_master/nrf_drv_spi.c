@@ -214,14 +214,21 @@ ret_code_t nrf_drv_spi_init(nrf_drv_spi_t const * const p_instance,
                  NRF_GPIO_PIN_DIR_OUTPUT,
                  NRF_GPIO_PIN_INPUT_CONNECT,
                  NRF_GPIO_PIN_NOPULL,
-                 NRF_GPIO_PIN_S0S1,
+                 NRF_GPIO_PIN_H0H1,//NRF_GPIO_PIN_S0S1,
                  NRF_GPIO_PIN_NOSENSE);
     // - MOSI (optional) - output with initial value 0,
     if (p_config->mosi_pin != NRF_DRV_SPI_PIN_NOT_USED)
     {
         mosi_pin = p_config->mosi_pin;
         nrf_gpio_pin_clear(mosi_pin);
-        nrf_gpio_cfg_output(mosi_pin);
+       
+      nrf_gpio_cfg(p_config->mosi_pin,
+                 NRF_GPIO_PIN_DIR_OUTPUT,
+                 NRF_GPIO_PIN_INPUT_CONNECT,
+                 NRF_GPIO_PIN_NOPULL,
+                 NRF_GPIO_PIN_H0H1,//NRF_GPIO_PIN_S0S1,
+                 NRF_GPIO_PIN_NOSENSE);
+        //nrf_gpio_cfg_output(mosi_pin); // YRE
     }
     else
     {
@@ -231,7 +238,8 @@ ret_code_t nrf_drv_spi_init(nrf_drv_spi_t const * const p_instance,
     if (p_config->miso_pin != NRF_DRV_SPI_PIN_NOT_USED)
     {
         miso_pin = p_config->miso_pin;
-        nrf_gpio_cfg_input(miso_pin, NRF_GPIO_PIN_PULLDOWN);
+        //nrf_gpio_cfg_input(miso_pin, NRF_GPIO_PIN_PULLDOWN);
+        nrf_gpio_cfg_input(miso_pin, NRF_GPIO_PIN_NOPULL);
     }
     else
     {

@@ -61,6 +61,7 @@
 #include "Libraries/Buzzer.h"
 #include "Libraries/FlashMemory.h"
 #include "Libraries/NMEA.h"
+#include "Libraries/FileSystem.h"
 
 /* App Include */
 #include "SigFox.h"
@@ -141,6 +142,7 @@ typedef enum _HARDWARE_TEST_CMD_ {
    HT_CMD_LPM,
    HT_CMD_BTL,
    HT_CMD_SFT,
+   HT_CMD_SDC,
    HT_CMD_HLP,
    HT_CMD_RST,
    HT_CMD_LAST,
@@ -210,7 +212,11 @@ static inline void __segger_scanf(const char * format, void * pVal)
       {
          str[i++] = c;
       }
+      #ifdef SDCARD_LOG
+   } while((c != '\n') && (c != '\0'));
+      #else
    } while( ((c != '\n') && (c != '\0')) || (r == 0) );
+      #endif
    sscanf((char*)str, format, pVal); 
 }
 
@@ -369,6 +375,7 @@ static uint8_t g_u8LTCInit = 0u;
 static uint8_t g_u8ADXInit = 0u;
    
 static uint8_t g_u8StopTest = 0u;
+static uint8_t g_u8SDInit = 0u;
 static uint8_t g_u8TestInProgress = 0u;
 static uint8_t g_u8I2CInitSensors = 0u;
 static uint8_t g_u8RTCCheck = 0u;   
@@ -404,6 +411,7 @@ const char g_cachCmd[HT_CMD_LAST][CMD_FRAME_SIZE+1u] = {
    "LPM\0",
    "BTL\0",
    "SFT\0",
+   "SDC\0",
    "HLP\0",
    "RST\0",
 };
@@ -450,6 +458,7 @@ void vHT_PrintHelp(void)
    printf("LPM: Lowest Power Mode Set\n");
    printf("BTL: Put Device in Bootloader for Firmware Update\n");
    printf("SFT: Self Test + ADXL or LSM6 or LIS2\n");
+   printf("SDC: SD Card write test\n");
    printf("HLP: Print Help\n");
    printf("RST: RESET\n");
 }
@@ -670,6 +679,28 @@ static void vHT_NewTestProcess(e_HT_Commands_t p_eCmd, uint8_t * p_au8Arg, uint8
       case HT_CMD_SFT:
          vStartSelfTest(p_au8Arg, p_u8Size);
          break;
+      case HT_CMD_SDC:
+         printf("$ACK,SDC+1\n");
+         if(g_u8SDInit == 0u)
+         {
+            vFS_Init();
+            vHal_Timer_DelayMs(1000);
+            vFS_CreateFile("GPS.txt\0");
+            g_u8SDInit = 1u;
+            
+            printf("$RSL,SDC+1\n");
+         }
+         else
+         {
+            vFS_Sync();
+            vHal_Timer_DelayMs(1000);
+            vFS_CloseFile();
+            vHal_Timer_DelayMs(1000);
+            vFS_Uninit();
+            printf("$RSL,SDC+1\n");
+            g_u8SDInit = 0u;
+         }
+         break;
       case HT_CMD_HLP:
          printf("$ACK,HLP+1\n");
          vHT_PrintHelp();
@@ -722,7 +753,7 @@ static void vStartSPITest(void)
       .u32MOSIPin = SPI_MOSI,
       .u32MISOPin = SPI_MISO,
       .u32ClockPin = SPI_SCLK,
-      .u32ChipSelectPin = ADXL_CS,
+      .u32ChipSelectPin = 0xFF,//ADXL_CS,
       .eMode = HALSPI_MODE_0,
       .eFrequency = HALSPI_FREQ_1M,
    };
