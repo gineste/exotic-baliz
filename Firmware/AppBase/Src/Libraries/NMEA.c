@@ -520,8 +520,6 @@ void vNMEA_FrameProcessing(void)
    
    #ifdef SDCARD_LOG
       static uint8_t l_u8Idx = 0u;
-      static uint16_t l_u16Size = 0u;
-      static char l_achBuffer[2][NMEA_MAX_SIZE] = { '\0', '\0' };
    #endif
    /* Check if queue is empty */
    while(u8NMEAIsQueueEmpty() == 0u)
@@ -529,13 +527,7 @@ void vNMEA_FrameProcessing(void)
       /* Enqueue Frame and process it */
       vNMEAEnqueueMsg(l_au8NMEABuffer, &l_u8Size);
       l_u8SentenceID = u8SentenceIDGet(l_au8NMEABuffer);
-   #ifdef SDCARD_LOG
-//      memset(&l_achBuffer[l_u8Idx][0], '\0', NMEA_MAX_SIZE);
-//      l_u8Idx++;
-//      l_u8Idx = l_u8Idx%2u;
-      l_u16Size = l_u8Size;
-      memcpy(&l_achBuffer[l_u8Idx][0], l_au8NMEABuffer, l_u16Size);
-   #endif
+      
       switch((e_NMEASentence_t)l_u8SentenceID)
       {
          case NMEA_PSRF:
@@ -567,9 +559,6 @@ void vNMEA_FrameProcessing(void)
             memcpy((void*)g_au8NMEALastGLL, l_au8NMEABuffer, l_u8Size);
             break;
          case NMEA_GPGSV:
-         #ifdef SDCARD_LOG
-            vFS_Sync();
-         #endif
             break;
          case NMEA_GPGST:
             vParserNMEA((e_NMEASentence_t)l_u8SentenceID, l_au8NMEABuffer, l_u8Size, (void*)&g_sNMEAGST);
@@ -596,7 +585,12 @@ void vNMEA_FrameProcessing(void)
          g_u8LocationFixed = 0u;
       }
       #ifdef SDCARD_LOG
-         vFS_Write(&l_achBuffer[l_u8Idx][0], l_u16Size);
+         vFS_Write((char*)l_au8NMEABuffer, l_u8Size);
+         l_u8Idx++;
+         if(l_u8Idx % 200)
+         {
+            vFS_Sync();
+         }
       #endif
    }
    

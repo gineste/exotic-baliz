@@ -140,7 +140,7 @@ void vFS_Uninit(void)
 void vFS_CreateFile(char* p_pchName)
 {
    FRESULT ff_result;
-   
+   char l_achFileName[20u] = { '\0' };
    if(g_u8FSInit == 1u)
    {
       printf("\r\n Listing directory: /\n\0");
@@ -177,11 +177,30 @@ void vFS_CreateFile(char* p_pchName)
 
       if(p_pchName != NULL)
       {
-         printf("Writing to file %s...\n\0", p_pchName);
-         ff_result = f_open(&file, p_pchName, FA_WRITE | FA_OPEN_ALWAYS);
+         uint8_t l_u8Idx = 0u;
+         uint8_t l_u8Size = strlen(p_pchName);
+         char l_achParam[5u] = { '\0' };
+         strcpy(l_achFileName, p_pchName);
+         
+         do {            
+            //sscanf( l_achParam, "%3d", l_u8Idx);
+            sprintf( l_achParam, "%u", l_u8Idx);
+            strcpy(&l_achFileName[l_u8Size], l_achParam);
+            memset( l_achParam, '\0', 5);
+            ff_result = f_open(&file, l_achFileName, FA_OPEN_EXISTING);
+            if(ff_result == FR_OK)
+            {
+               // Close 
+               (void) f_close(&file);
+               l_u8Idx++;
+            }
+         }while((ff_result != FR_NO_FILE) && (l_u8Idx < 200) );
+         
+         printf("Openning file %s...\n\0", l_achFileName);
+         ff_result = f_open(&file, l_achFileName, FA_WRITE | FA_OPEN_ALWAYS);
          if (ff_result != FR_OK)
          {
-           printf("Unable to open or create file: %s.\n\0", p_pchName);
+           printf("Unable to open or create file: %s.\n\0", l_achFileName);
            return;
          }
          g_u8FSFileCreated = 1u;
@@ -209,12 +228,12 @@ void vFS_Write(char * p_pchData, uint16_t p_u16Size)
       ff_result = f_write(&file, p_pchData, p_u16Size - 1, (UINT *) &bytes_written);
       if (ff_result != FR_OK)
       {
-         printf("Write failed\r\n.\0");
+         printf("Write failed.\n\0");
       }
-      else
-      {
-         printf("%d bytes written.\n\0", bytes_written);
-      }
+//      else
+//      {
+//         printf("%d bytes written.\n\0", bytes_written);
+//      }
    }
 }
 
@@ -226,7 +245,7 @@ void vFS_Sync(void)
       ff_result = f_sync(&file);
       if (ff_result != FR_OK)
       {
-         printf("Sync failed\n.\0");
+         printf("Sync failed.\n\0");
       }
       else
       {

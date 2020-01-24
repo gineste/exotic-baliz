@@ -684,8 +684,7 @@ static void vHT_NewTestProcess(e_HT_Commands_t p_eCmd, uint8_t * p_au8Arg, uint8
          if(g_u8SDInit == 0u)
          {
             vFS_Init();
-            vHal_Timer_DelayMs(1000);
-            vFS_CreateFile("GPS.txt\0");
+            vFS_CreateFile("GPS\0");
             g_u8SDInit = 1u;
             
             printf("$RSL,SDC+1\n");
@@ -693,8 +692,6 @@ static void vHT_NewTestProcess(e_HT_Commands_t p_eCmd, uint8_t * p_au8Arg, uint8
          else
          {
             vFS_Sync();
-            vHal_Timer_DelayMs(1000);
-            vFS_CloseFile();
             vHal_Timer_DelayMs(1000);
             vFS_Uninit();
             printf("$RSL,SDC+1\n");
