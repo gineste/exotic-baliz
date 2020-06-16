@@ -2819,7 +2819,7 @@ static void vCfgMAX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
          case 'I':            
             if(eMAX1720X_CurrentGet(&l_s32Data) == MAX1720X_ERROR_NONE)
             {
-               printf("$RSL,CFG,MAX+I+%d\n",l_s32Data);
+               printf("$RSL,CFG,MAX+I+%d\n",-l_s32Data);
                l_u8Success = 1u;
             }
             break;
