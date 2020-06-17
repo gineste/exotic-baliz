@@ -101,12 +101,14 @@
 #define HT_FLAG_SELFTEST_ADXL    0x0001
 #define HT_FLAG_SELFTEST_LSM6    0x0002
 #define HT_FLAG_SELFTEST_LIS2    0x0004
+#define HT_FLAG_SELFTEST_NFC     0x0008
 
 #define HT_FLAG_INT1_ADXL        0x0010
 #define HT_FLAG_INT2_ADXL        0x0020
 #define HT_FLAG_INT1_LSM6        0x0040
 #define HT_FLAG_INT2_LSM6        0x0080
 #define HT_FLAG_INT_LIS2         0x0100
+#define HT_FLAG_INT_GPO_NFC      0x0200
 
 #define HT_SET_FLAG(flag)     do {              \
             g_u32Flags |= (flag);               \
@@ -179,6 +181,8 @@ static void vStartRTCTest(void);
 static void vStopRTCTest(void);
 static void vLPMTest(void);
 static void vBTL_Start(void);
+static void vNFCTest(void);
+static void vNFCIntHandler(uint32_t p_u32IntPin, e_IntMng_PolarityDetection_t p_ePolarity);
       
 static void vHTTimeOutHandler(void * p_pvContext);
 static void vHTRTCHandler(void * p_pvContext);
@@ -342,6 +346,7 @@ static s_ST25DV_Context_t g_sST25DVContext = {
       .fp_vDelay_ms = &vHal_Timer_DelayMs,
       /* Config */
       .eEepromSize = ST25DV_EEPROM_SIZE_64K,
+		.u32IntPin = ST25DV_GPO_INT,
    };
 #endif
 #if (EN_LTC2943 == 1)   
@@ -574,6 +579,63 @@ static e_HT_Commands_t eCommandParser(uint8_t * p_au8CmdStr, uint8_t p_u8Size)
    
    return l_eCmd;
 }
+
+static void vNFCTest(void)
+{   
+#if (EN_ST25DV == 1)  
+   uint16_t l_u16Timeout = 100u;
+   vHal_GPIO_Clear(ST25DV_LPD);
+   vHal_Timer_DelayMs(DELAY_WAKEUP_SENSOR);
+   
+   s_IntMng_Context_t l_sInterruptCxt = {
+      .u32Pin = g_sST25DVContext.u32IntPin,
+      .ePullMode = HALGPIO_PIN_PULLDOWN,
+      .ePolarityDetection = INT_POL_DTCT_LOTOHI,
+      .fpvHandler = &vNFCIntHandler
+   };
+	
+	if(g_u8I2CInit == 1u)
+	{
+		if(eIntMngr_Add(l_sInterruptCxt) != INT_MNG_ERROR_NONE)
+		{
+			PRINT_WARNING("%s","Fail to Add GPIOTE NFC INT");
+		}
+		
+		if(eST25DV_ContextSet(g_sST25DVContext) == ST25DV_ERROR_NONE)
+		{
+			if(eST25DV_GPOConfigure(ST25DV_MSK_GPO_ENABLED | ST25DV_MSK_GPO_ON_ACTIVITY | ST25DV_MSK_GPO_ON_FIELD_CHANGE) == ST25DV_ERROR_NONE)
+			{
+				HT_SET_FLAG(HT_FLAG_SELFTEST_NFC);         
+			}
+		}
+		
+		while(l_u16Timeout)
+		{
+			vHal_Timer_DelayMs(100u);
+			l_u16Timeout--;
+			if(HT_CHECK_FLAG(HT_FLAG_INT_GPO_NFC))
+			{
+				l_u16Timeout = 0u;
+			}
+		}
+	}
+   
+   PRINT_CUSTOM("$RSL,NFC+%d,%d\n", HT_CHECK_FLAG(HT_FLAG_SELFTEST_NFC), HT_CHECK_FLAG(HT_FLAG_INT_GPO_NFC));
+   
+   eIntMngr_Delete(g_sST25DVContext.u32IntPin);
+	HT_CLEAR_FLAG(HT_FLAG_SELFTEST_NFC);
+	HT_CLEAR_FLAG(HT_FLAG_INT_GPO_NFC);
+   vHal_GPIO_Set(ST25DV_LPD);
+#endif
+}
+static void vNFCIntHandler(uint32_t p_u32IntPin, e_IntMng_PolarityDetection_t p_ePolarity)
+{
+   if(p_u32IntPin == g_sST25DVContext.u32IntPin)
+   {
+      HT_SET_FLAG(HT_FLAG_INT_GPO_NFC);
+   }
+}
+
 static void vHT_NewTestProcess(e_HT_Commands_t p_eCmd, uint8_t * p_au8Arg, uint8_t p_u8Size)
 {
    switch(p_eCmd)
@@ -664,6 +726,7 @@ static void vHT_NewTestProcess(e_HT_Commands_t p_eCmd, uint8_t * p_au8Arg, uint8
          break;
       case HT_CMD_NFC:
          printf("$ACK,NFC+1\n");
+			vNFCTest();
          break;
       case HT_CMD_INT:
          printf("$ACK,INT+1\n");

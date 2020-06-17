@@ -58,6 +58,7 @@ typedef struct _ST25DV_CONTEXT_ {
    void (*fp_vDelay_ms)(uint32_t p_u32Timeout); 
    /* Config */
    e_ST25DV_EEPROM_Size_t eEepromSize;
+	uint32_t u32IntPin;
 }s_ST25DV_Context_t;
 
 /****************************************************************************************
