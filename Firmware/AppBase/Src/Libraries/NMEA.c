@@ -589,7 +589,7 @@ void vNMEA_FrameProcessing(void)
          l_u8Idx++;
          if(l_u8Idx % 200)
          {
-            vFS_Sync();
+            eFS_Sync();
          }
       #endif
    }

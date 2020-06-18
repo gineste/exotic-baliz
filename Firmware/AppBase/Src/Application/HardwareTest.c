@@ -746,17 +746,17 @@ static void vHT_NewTestProcess(e_HT_Commands_t p_eCmd, uint8_t * p_au8Arg, uint8
          printf("$ACK,SDC+1\n");
          if(g_u8SDInit == 0u)
          {
-            vFS_Init();
-            vFS_CreateFile("GPS\0");
+            eFS_Init();
+            eFS_CreateFile("GPS\0");
             g_u8SDInit = 1u;
             
             printf("$RSL,SDC+1\n");
          }
          else
          {
-            vFS_Sync();
+            eFS_Sync();
             vHal_Timer_DelayMs(1000);
-            vFS_Uninit();
+            eFS_Uninit();
             printf("$RSL,SDC+1\n");
             g_u8SDInit = 0u;
          }
@@ -2988,7 +2988,7 @@ static void vStartADXLSelfTest(void)
       
       if(eIntMngr_Add(l_sInterruptCxt) != INT_MNG_ERROR_NONE)
       {
-         printf("$RSL,INT+ADXL+0\n");
+         printf("$RSL,SFT+ADXL+0\n");
       }
       l_sInterruptCxt.u32Pin = ADXL_INT1;
       l_sInterruptCxt.ePullMode = HALGPIO_PIN_NOPULL;
@@ -2997,7 +2997,7 @@ static void vStartADXLSelfTest(void)
       
       if(eIntMngr_Add(l_sInterruptCxt) != INT_MNG_ERROR_NONE)
       {
-         printf("$RSL,INT+ADXL+0\n");
+         printf("$RSL,SFT+ADXL+0\n");
       }
       
       if(eADXL362_ContextSet(g_sADXLContext) == ADXL362_ERROR_NONE)
@@ -3128,13 +3128,13 @@ static void vStartLSM6SelfTest(void)
       
       if(eIntMngr_Add(l_sInterruptCxt) != INT_MNG_ERROR_NONE)
       {
-         printf("$RSL,INT1+LSM6+0\n");
+         printf("$RSL,SFT+LSM6+0\n");
       }
       
       l_sInterruptCxt.u32Pin = LSM6_INT2;      
       if(eIntMngr_Add(l_sInterruptCxt) != INT_MNG_ERROR_NONE)
       {
-         printf("$RSL,INT2+LSM6+0\n");
+         printf("$RSL,SFT+LSM6+0\n");
       }
       
       if(eLSM6DSL_ContextSet(g_sLSM6Context) == LSM6DSL_ERROR_NONE)
@@ -3260,7 +3260,7 @@ static void vStartLIS2SelfTest(void)
       
       if(eIntMngr_Add(l_sInterruptCxt) != INT_MNG_ERROR_NONE)
       {
-         printf("$RSL,INT+LIS2+0\n");
+         printf("$RSL,SFT+LIS2+0\n");
       }
       
       if(eLIS2MDL_ContextSet(g_sLIS2Context) == LIS2MDL_ERROR_NONE)

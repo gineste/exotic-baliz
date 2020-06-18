@@ -86,10 +86,11 @@ static uint8_t g_u8FSFileCreated = 0u;
 /****************************************************************************************
  * Public functions
  ****************************************************************************************/ 
-void vFS_Init(void)
+e_FileSys_Error_t eFS_Init(void)
 {   
    FRESULT ff_result;
    DSTATUS disk_state = STA_NOINIT;
+	e_FileSys_Error_t l_eErrCode = FILESYS_ERROR_NONE;
 
    // Initialize FATFS disk I/O interface by providing the block device.
    static diskio_blkdev_t drives[] =
@@ -107,40 +108,52 @@ void vFS_Init(void)
    if (disk_state)
    {
      printf("Disk initialization failed.\n\0");
-     return;
+     l_eErrCode = FILESYS_ERROR_FAIL;
    }
+	else
+	{
+		uint32_t blocks_per_mb = (1024uL * 1024uL) / m_block_dev_sdc.block_dev.p_ops->geometry(&m_block_dev_sdc.block_dev)->blk_size;
+		uint32_t capacity = m_block_dev_sdc.block_dev.p_ops->geometry(&m_block_dev_sdc.block_dev)->blk_count / blocks_per_mb;
+		printf("Capacity: %d MB\n\0", capacity);
 
-   uint32_t blocks_per_mb = (1024uL * 1024uL) / m_block_dev_sdc.block_dev.p_ops->geometry(&m_block_dev_sdc.block_dev)->blk_size;
-   uint32_t capacity = m_block_dev_sdc.block_dev.p_ops->geometry(&m_block_dev_sdc.block_dev)->blk_count / blocks_per_mb;
-   printf("Capacity: %d MB\n\0", capacity);
-
-   printf("Mounting volume...\n\0");
-   ff_result = f_mount(&fs, "", 1);
-   if (ff_result)
-   {
-     printf("Mount failed.\n\0");
-     return;
-   }
-   g_u8FSInit = 1u;
+		printf("Mounting volume...\n\0");
+		ff_result = f_mount(&fs, "", 1);
+		if (ff_result)
+		{
+		  printf("Mount failed.\n\0");
+		  l_eErrCode = FILESYS_ERROR_FAIL;
+		}
+		else
+		{
+		  g_u8FSInit = 1u;
+		}
+	}
+	return l_eErrCode;
 }
 
-void vFS_Uninit(void)
+e_FileSys_Error_t eFS_Uninit(void)
 {
    FRESULT ff_result;
    printf("Unmounting volume...\n\0");
    ff_result = f_mount(NULL, "", 1);
+	e_FileSys_Error_t l_eErrCode = FILESYS_ERROR_NONE;
    if (ff_result)
    {
      printf("Unmount failed.\n\0");
-     return;
+     l_eErrCode = FILESYS_ERROR_FAIL;
    }
-   g_u8FSInit = 0u;
+	else
+	{
+		g_u8FSInit = 0u;
+	}
+	return l_eErrCode;
 }
 
-void vFS_CreateFile(char* p_pchName)
+e_FileSys_Error_t eFS_CreateFile(char* p_pchName)
 {
    FRESULT ff_result;
    char l_achFileName[20u] = { '\0' };
+	e_FileSys_Error_t l_eErrCode = FILESYS_ERROR_NONE;
    if(g_u8FSInit == 1u)
    {
       printf("\r\n Listing directory: /\n\0");
@@ -148,64 +161,77 @@ void vFS_CreateFile(char* p_pchName)
       if (ff_result)
       {
         printf("Directory listing failed!\n\0");
-        return;
+        l_eErrCode = FILESYS_ERROR_FAIL;
       }
-
-      do
-      {
-        ff_result = f_readdir(&dir, &fno);
-        if (ff_result != FR_OK)
-        {
-            printf("Directory read failed.\n\0");
-            return;
-        }
-
-        if (fno.fname[0])
-        {
-            if (fno.fattrib & AM_DIR)
-            {
-                printf("   <DIR>   %s\n\0",fno.fname);
-            }
-            else
-            {
-                printf("%9lu  %s\n\0", fno.fsize, fno.fname);
-            }
-        }
-      }
-      while (fno.fname[0]);
-      printf("");
-
-      if(p_pchName != NULL)
-      {
-         uint8_t l_u8Idx = 0u;
-         uint8_t l_u8Size = strlen(p_pchName);
-         char l_achParam[5u] = { '\0' };
-         strcpy(l_achFileName, p_pchName);
-         
-         do {            
-            //sscanf( l_achParam, "%3d", l_u8Idx);
-            sprintf( l_achParam, "%u", l_u8Idx);
-            strcpy(&l_achFileName[l_u8Size], l_achParam);
-            memset( l_achParam, '\0', 5);
-            ff_result = f_open(&file, l_achFileName, FA_OPEN_EXISTING);
-            if(ff_result == FR_OK)
-            {
-               // Close 
-               (void) f_close(&file);
-               l_u8Idx++;
-            }
-         }while((ff_result != FR_NO_FILE) && (l_u8Idx < 200) );
-         
-         printf("Openning file %s...\n\0", l_achFileName);
-         ff_result = f_open(&file, l_achFileName, FA_WRITE | FA_OPEN_ALWAYS);
-         if (ff_result != FR_OK)
-         {
-           printf("Unable to open or create file: %s.\n\0", l_achFileName);
-           return;
-         }
-         g_u8FSFileCreated = 1u;
-      }
+		else
+		{
+			do
+			{
+			  ff_result = f_readdir(&dir, &fno);
+			  if (ff_result != FR_OK)
+			  {
+					printf("Directory read failed.\n\0");
+					l_eErrCode = FILESYS_ERROR_FAIL;
+			  }
+			  else
+			  {
+				  if (fno.fname[0])
+				  {
+						if (fno.fattrib & AM_DIR)
+						{
+							 printf("   <DIR>   %s\n\0",fno.fname);
+						}
+						else
+						{
+							 printf("%9lu  %s\n\0", fno.fsize, fno.fname);
+						}
+				  }  
+			  }
+			}while ((fno.fname[0]) && (l_eErrCode == FILESYS_ERROR_NONE));
+			printf("");
+			if(FILESYS_ERROR_NONE == l_eErrCode)
+			{
+				if(p_pchName != NULL)
+				{
+					uint8_t l_u8Idx = 0u;
+					uint8_t l_u8Size = strlen(p_pchName);
+					char l_achParam[5u] = { '\0' };
+					strcpy(l_achFileName, p_pchName);
+					
+					do {            
+						//sscanf( l_achParam, "%3d", l_u8Idx);
+						sprintf( l_achParam, "%u", l_u8Idx);
+						strcpy(&l_achFileName[l_u8Size], l_achParam);
+						memset( l_achParam, '\0', 5);
+						ff_result = f_open(&file, l_achFileName, FA_OPEN_EXISTING);
+						if(ff_result == FR_OK)
+						{
+							// Close 
+							(void) f_close(&file);
+							l_u8Idx++;
+						}
+					}while((ff_result != FR_NO_FILE) && (l_u8Idx < 200) );
+					
+					printf("Openning file %s...\n\0", l_achFileName);
+					ff_result = f_open(&file, l_achFileName, FA_WRITE | FA_OPEN_ALWAYS);
+					if (ff_result != FR_OK)
+					{
+					  printf("Unable to open or create file: %s.\n\0", l_achFileName);
+					  l_eErrCode = FILESYS_ERROR_FAIL;
+					}
+					else
+					{
+						g_u8FSFileCreated = 1u;
+					}
+				}
+				else
+				{
+					l_eErrCode = FILESYS_ERROR_PARAM;
+				}
+			}
+		}
    }
+	return l_eErrCode;
 }
 
 void vFS_IsFileOpen(uint8_t * p_pu8IsOpen)
@@ -237,14 +263,16 @@ void vFS_Write(char * p_pchData, uint16_t p_u16Size)
    }
 }
 
-void vFS_Sync(void)
+e_FileSys_Error_t eFS_Sync(void)
 {
    FRESULT ff_result;
+	e_FileSys_Error_t l_eErrCode = FILESYS_ERROR_NONE;
    if(g_u8FSInit && g_u8FSFileCreated)
    {
       ff_result = f_sync(&file);
       if (ff_result != FR_OK)
       {
+			l_eErrCode = FILESYS_ERROR_SYNC;
          printf("Sync failed.\n\0");
       }
       else
@@ -252,6 +280,7 @@ void vFS_Sync(void)
          printf("Sync ok.\n\0");
       }
    }
+	return l_eErrCode;
 }
 /****************************************************************************************
  * Private functions

@@ -26,16 +26,22 @@
 /****************************************************************************************
  * Type definitions
  ****************************************************************************************/
+ typedef enum _FILESYS_ERROR_CODE_ {
+   FILESYS_ERROR_NONE,        /*! Success */
+   FILESYS_ERROR_PARAM,       /*! Wrong parameter (Null pointer,...) */
+	FILESYS_ERROR_SYNC,        /*! Error synchronizing file */
+   FILESYS_ERROR_FAIL			/*! Fail (init, uninit,...) */
+}e_FileSys_Error_t;
 
 /****************************************************************************************
  * Public function declarations
  ****************************************************************************************/
-void vFS_Init(void);
-void vFS_Uninit(void);
-void vFS_CreateFile(char* p_pchName);
+e_FileSys_Error_t eFS_Init(void);
+e_FileSys_Error_t eFS_Uninit(void);
+e_FileSys_Error_t eFS_CreateFile(char* p_pchName);
 void vFS_IsFileOpen(uint8_t * p_pu8IsOpen);
 void vFS_CloseFile(void);
-void vFS_Sync(void);
+e_FileSys_Error_t eFS_Sync(void);
 void vFS_Write(char * p_pchData, uint16_t p_u16Size);
 
 #endif /* FILE_SYSTEM_H */
