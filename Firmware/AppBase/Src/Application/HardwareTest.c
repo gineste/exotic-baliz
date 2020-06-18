@@ -746,19 +746,26 @@ static void vHT_NewTestProcess(e_HT_Commands_t p_eCmd, uint8_t * p_au8Arg, uint8
          printf("$ACK,SDC+1\n");
          if(g_u8SDInit == 0u)
          {
-            eFS_Init();
-            eFS_CreateFile("GPS\0");
-            g_u8SDInit = 1u;
-            
-            printf("$RSL,SDC+1\n");
+				if (FILESYS_ERROR_NONE == eFS_Init())
+				{
+					if (FILESYS_ERROR_NONE == eFS_CreateFile("GPS\0"))
+					{
+						g_u8SDInit = 1u;
+					}
+				}
+				printf("$RSL,SDC+%d\n",g_u8SDInit);
          }
          else
          {
-            eFS_Sync();
-            vHal_Timer_DelayMs(1000);
-            eFS_Uninit();
-            printf("$RSL,SDC+1\n");
-            g_u8SDInit = 0u;
+            if (FILESYS_ERROR_NONE == eFS_Sync())
+				{
+					vHal_Timer_DelayMs(1000);
+					if (FILESYS_ERROR_NONE == eFS_Uninit())
+					{
+						g_u8SDInit = 0u;
+					}
+				}
+				printf("$RSL,SDC+%d\n",!g_u8SDInit);
          }
          break;
       case HT_CMD_HLP:
