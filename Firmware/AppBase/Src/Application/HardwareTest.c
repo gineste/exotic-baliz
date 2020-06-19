@@ -524,7 +524,6 @@ void vHT_BackgroundProcess(void)
          HT_CLEAR_FLAG(HT_FLAG_INT1_ADXL);
          HT_CLEAR_FLAG(HT_FLAG_INT2_ADXL);
          HT_CLEAR_FLAG(HT_FLAG_SELFTEST_ADXL);
-         printf("$RSL,SFT+ADXL+1\n");
          (void)eIntMngr_Delete(ADXL_INT1);
          (void)eIntMngr_Delete(ADXL_INT2);
          vHal_GPIO_Clear(ADXL_POWER_EN);
@@ -539,7 +538,6 @@ void vHT_BackgroundProcess(void)
          HT_CLEAR_FLAG(HT_FLAG_SELFTEST_LSM6);
          (void)eIntMngr_Delete(LSM6_INT1);
          (void)eIntMngr_Delete(LSM6_INT2);
-         printf("$RSL,SFT+LSM6+1\n");
       }
    }
    else if(HT_CHECK_FLAG(HT_FLAG_SELFTEST_LIS2))
@@ -548,7 +546,6 @@ void vHT_BackgroundProcess(void)
       {
          HT_CLEAR_FLAG(HT_FLAG_INT_LIS2);
          HT_CLEAR_FLAG(HT_FLAG_SELFTEST_LIS2);
-         printf("$RSL,SFT+LIS2+1\n");
          (void)eIntMngr_Delete(LIS2_INT);
       }
    }
@@ -873,11 +870,11 @@ static void vStartI2CSensorsInitTest(void)
    
    if(l_u8Error == 1u)
    {
-      printf("$RSL,ISS+0+BME280\n");
+      printf("$RSL,ISS,BME+0\n");
       return;
    }
    
-#endif
+#endif	
 #if (EN_MAX44009 == 1)  
    l_u8Error = 1u;
    // NOTE : No part ID available for MAX44009 just try to write something on it
@@ -892,7 +889,7 @@ static void vStartI2CSensorsInitTest(void)
    
    if(l_u8Error == 1u)
    {
-      printf("$RSL,ISS+0+MAX44009\n");
+      printf("$RSL,ISS,MAX+0\n");
       return;
    }
 #endif
@@ -913,7 +910,7 @@ static void vStartI2CSensorsInitTest(void)
    
    if(l_u8Error == 1u)
    {
-      printf("$RSL,ISS+0+LSM6DSL\n");
+      printf("$RSL,ISS,LSM+0\n");
       return;
    }
 #endif
@@ -934,7 +931,7 @@ static void vStartI2CSensorsInitTest(void)
    
    if(l_u8Error == 1u)
    {
-      printf("$RSL,ISS+0+LIS2MDL\n");
+      printf("$RSL,ISS,LIS+0\n");
       return;
    }   
 #endif
@@ -944,12 +941,18 @@ static void vStartI2CSensorsInitTest(void)
 #endif
    
 #if (EN_ST25DV == 1)
-   if(eST25DV_ContextSet(g_sST25DVContext) != ST25DV_ERROR_NONE)
+	l_u8Error = 1u;
+   if(eST25DV_ContextSet(g_sST25DVContext) == ST25DV_ERROR_NONE)
    {
       (void)eST25DV_GPOConfigure(ST25DV_MSK_GPO_ENABLED | ST25DV_MSK_GPO_ON_FIELD_CHANGE);
-      printf("$RSL,ISS+0+ST25DV\n");
-      return;
+		l_u8Error = 0u;
    }
+	
+	if(l_u8Error == 1u)
+   {
+		printf("$RSL,ISS,NFC+0\n");
+		return;
+   }   
 #endif
    
 #if (EN_LTC2943 == 1)
@@ -965,7 +968,7 @@ static void vStartI2CSensorsInitTest(void)
    
    if(l_u8Error == 1u)
    {
-      printf("$RSL,ISS+0+LTC2943\n");
+      printf("$RSL,ISS,LTC+0\n");
       return;
    }
 #endif
@@ -1171,7 +1174,7 @@ static void vStartI2CSensorsReadTest(void)
          l_u8Error = u8BME_SingleShotRead(&l_fT, &l_fP, &l_fH);
          if(l_u8Error == 1)
          {
-            printf("$RSL,RSS+0+BME280\n");
+            printf("$RSL,RSS,BME+0\n");
             return;
          }
          else
@@ -1199,7 +1202,7 @@ static void vStartI2CSensorsReadTest(void)
          }
          if(l_u8Error == 1u)
          {
-            printf("$RSL,RSS+0+MAX44009\n");
+            printf("$RSL,RSS,MAX+0\n");
             return;
          }
       #endif
@@ -1243,7 +1246,7 @@ static void vStartI2CSensorsReadTest(void)
          
          if(l_u8Error == 1u)
          {
-            printf("$RSL,RSS+0+LSM6DSL\n");
+            printf("$RSL,RSS,LSM+0\n");
             return;
          }
       #endif
@@ -1264,7 +1267,7 @@ static void vStartI2CSensorsReadTest(void)
          }
          if(l_u8Error == 1u)
          {
-            printf("$RSL,RSS+0+LIS2MDL\n");
+            printf("$RSL,RSS,LIS+0\n");
             return;
          }
       #endif
@@ -1313,7 +1316,7 @@ static void vStartI2CSensorsReadTest(void)
          }
          if(l_u8Error != 0u)
          {
-            printf("$RSL,RSS+0+LTC2943\n");
+            printf("$RSL,RSS,LTC+0\n");
             return;
          }
       #endif
@@ -1901,7 +1904,7 @@ static void vLPMTest(void)
 {
    if(g_u8I2CInitSensors == 0u)
    {      
-      printf("$RSL,LPM+0+ISS\n");
+      printf("$RSL,LPM+0,ISS\n");
    }
    else
    {
@@ -2029,7 +2032,7 @@ static void vLPMTest(void)
 static void vBTL_Start(void)
 {
    NRF_POWER->GPREGRET = 0xB1; 
-   printf("$RSL,BTL+1+CLOSE_VIEWER\n");
+   printf("$RSL,BTL+1,CLOSE_VIEWER\n");
    
    NVIC_SystemReset();
    
@@ -2632,7 +2635,7 @@ static void vCfgBME(uint8_t * p_pu8Arg, uint8_t p_u8Size)
    {
       eBME280_TPHRead();
    }
-   printf("$RSL,CFG,BME,%c+%s\n",(char)p_pu8Arg[0u],"1");
+   printf("$RSL,CFG,BME+1,%c\n",(char)p_pu8Arg[0u]);
 }
 static void vCfgADX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
 {
@@ -2698,7 +2701,7 @@ static void vCfgADX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
    {
       (void)eADXL362_AccelerationRead();
    }
-   printf("$RSL,CFG,ADX,%c+%s\n",(char)p_pu8Arg[0u],"1");
+   printf("$RSL,CFG,ADX+1,%c\n",(char)p_pu8Arg[0u]);
 }
 static void vCfgLIS(uint8_t * p_pu8Arg, uint8_t p_u8Size)
 {
@@ -2738,7 +2741,7 @@ static void vCfgLIS(uint8_t * p_pu8Arg, uint8_t p_u8Size)
    {
       eLIS2MDL_MagneticRead();
    }
-   printf("$RSL,CFG,LIS,%c+%s\n",(char)p_pu8Arg[0u],"1");
+   printf("$RSL,CFG,LIS+1,%c\n",(char)p_pu8Arg[0u]);
 }
 static void vCfgLSM(uint8_t * p_pu8Arg, uint8_t p_u8Size)
 {
@@ -2773,7 +2776,7 @@ static void vCfgLSM(uint8_t * p_pu8Arg, uint8_t p_u8Size)
          (void)eLSM6DSL_GyroRead();
       }
    }
-   printf("$RSL,CFG,LSM,%c+%s\n",(char)p_pu8Arg[0u],"1");
+   printf("$RSL,CFG,LSM+1,%c\n",(char)p_pu8Arg[0u]);
 }
 
 static void vCfgORG(uint8_t * p_pu8Arg, uint8_t p_u8Size)
@@ -2861,7 +2864,7 @@ static void vCfgMAX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
          case 's':
             if(eMAX1720X_StatusGet(&l_u16Data) == MAX1720X_ERROR_NONE)
             {
-               PRINT_CUSTOM("Status x%04X\n", l_u16Data);
+					printf("$RSL,CFG,MAX+1,x%04X\n",l_u16Data);
                l_u8Success = 1u;
             }
             break;
@@ -2870,7 +2873,7 @@ static void vCfgMAX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
                && (eMAX1720X_TemperatureGet(MAX1720X_TEMP_1, &l_s32Data1) == MAX1720X_ERROR_NONE)
                && (eMAX1720X_TemperatureGet(MAX1720X_TEMP_2, &l_s32Data2) == MAX1720X_ERROR_NONE) )
             {
-               printf("$RSL,CFG,MAX+T+%d+%d+%d\n",l_s32Data);
+               printf("$RSL,CFG,MAX+1,%d,%d,%d\n",l_s32Data,l_s32Data1,l_s32Data2);
                l_u8Success = 1u;
             }
             break;
@@ -2882,14 +2885,14 @@ static void vCfgMAX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
                && (eMAX1720X_VoltageGet(MAX1720X_CELL_X, &l_u16DataX) == MAX1720X_ERROR_NONE)
                && (eMAX1720X_VoltageGet(MAX1720X_VBAT, &l_u16DataAll) == MAX1720X_ERROR_NONE) )
             {
-               printf("$RSL,CFG,MAX+V+%d+%d+%d+%d+%d+%d\n",l_u16Data1,l_u16Data2,l_u16Data3,l_u16Data4,l_u16DataX,l_u16DataAll);
+               printf("$RSL,CFG,MAX+1,%d,%d,%d,%d,%d,%d\n",l_u16Data1,l_u16Data2,l_u16Data3,l_u16Data4,l_u16DataX,l_u16DataAll);
                l_u8Success = 1u;
             }
             break;
          case 'I':            
             if(eMAX1720X_CurrentGet(&l_s32Data) == MAX1720X_ERROR_NONE)
             {
-               printf("$RSL,CFG,MAX+I+%d\n",-l_s32Data);
+               printf("$RSL,CFG,MAX+1,%d\n",-l_s32Data);
                l_u8Success = 1u;
             }
             break;
@@ -2898,7 +2901,7 @@ static void vCfgMAX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
             l_u16Data = (uint16_t)l_u32Reg;
             if(eMAX1720X_DebugRead(l_u16Data,&l_u16Data1) == MAX1720X_ERROR_NONE)
             {
-               printf("$RSL,CFG,MAX+r+x%03X:x%04X\n",l_u16Data,l_u16Data1);
+               printf("$RSL,CFG,MAX+1,x%03X:x%04X\n",l_u16Data,l_u16Data1);
                l_u8Success = 1u;
             }
             break;
@@ -2936,22 +2939,22 @@ static void vStartSelfTest(uint8_t * p_pu8Arg, uint8_t p_u8Size)
 {
    if(strncmp((char*)p_pu8Arg, "ADXL", strlen("ADXL")) == 0)
    {
-      printf("$ACK,SFT+ADXL+1\n");
+      printf("$ACK,SFT,ADXL+1\n");
       vStartADXLSelfTest();
    }
    else if(strncmp((char*)p_pu8Arg, "LSM6", strlen("LSM6")) == 0)
    {
-      printf("$ACK,SFT+LSM6+1\n");
+      printf("$ACK,SFT,LSM6+1\n");
       vStartLSM6SelfTest();
    }
    else if(strncmp((char*)p_pu8Arg, "LIS2", strlen("LIS2")) == 0)
    {
-      printf("$ACK,SFT+LIS2+1\n");
+      printf("$ACK,SFT,LIS2+1\n");
       vStartLIS2SelfTest();
    }
    else
    {
-      printf("$ACK,SFT+UKW+0\n");
+      printf("$ACK,SFT,UKW+0\n");
    }
 }
 
@@ -2978,7 +2981,6 @@ static void vStartADXLSelfTest(void)
    int32_t l_s32YRes = 0;
    int32_t l_s32ZRes = 0;
    uint8_t l_u8Idx = 0u;
-   uint8_t l_u8Error = 255u;
 #endif
 
    if(g_u8SPIInit == 1u)
@@ -2995,7 +2997,7 @@ static void vStartADXLSelfTest(void)
       
       if(eIntMngr_Add(l_sInterruptCxt) != INT_MNG_ERROR_NONE)
       {
-         printf("$RSL,SFT+ADXL+0\n");
+         //printf("$RSL,SFT,ADXL+0\n");
       }
       l_sInterruptCxt.u32Pin = ADXL_INT1;
       l_sInterruptCxt.ePullMode = HALGPIO_PIN_NOPULL;
@@ -3004,7 +3006,7 @@ static void vStartADXLSelfTest(void)
       
       if(eIntMngr_Add(l_sInterruptCxt) != INT_MNG_ERROR_NONE)
       {
-         printf("$RSL,SFT+ADXL+0\n");
+         //printf("$RSL,SFT,ADXL+0\n");
       }
       
       if(eADXL362_ContextSet(g_sADXLContext) == ADXL362_ERROR_NONE)
@@ -3067,7 +3069,7 @@ static void vStartADXLSelfTest(void)
                                  && (MIN_Y <= l_s32YRes) && (l_s32YRes <= MAX_Y)
                                  && (MIN_X_Z <= l_s32ZRes) && (l_s32ZRes <= MAX_X_Z) )
                               {
-                                 l_u8Error = 0u;
+                                 HT_SET_FLAG(HT_FLAG_SELFTEST_ADXL);
                               }
                            }
                         }
@@ -3081,15 +3083,7 @@ static void vStartADXLSelfTest(void)
       //vHal_GPIO_Clear(ADXL_POWER_EN);
 #endif
    }
-   
-   if(l_u8Error == 0u)
-   {
-      HT_SET_FLAG(HT_FLAG_SELFTEST_ADXL);
-   }
-   else
-   {
-      printf("$RSL,SFT+ADXL+0\n");
-   }
+	PRINT_CUSTOM("$RSL,SFT,ADXL+%d,%d\n", HT_CHECK_FLAG(HT_FLAG_SELFTEST_ADXL), (HT_CHECK_FLAG(HT_FLAG_INT1_ADXL) && HT_CHECK_FLAG(HT_FLAG_INT2_ADXL)));
 }
 static void vADXLSelfTestIntHandler(uint32_t p_u32IntPin, e_IntMng_PolarityDetection_t p_ePolarity)
 {
@@ -3121,7 +3115,6 @@ static void vStartLSM6SelfTest(void)
    int32_t l_s32YRes = 0;
    int32_t l_s32ZRes = 0;
    uint8_t l_u8Idx = 0u;
-   uint8_t l_u8Error = 255u;
    
    #define ST_LSM6_MIN_POS		90
    #define ST_LSM6_MAX_POS		1700
@@ -3135,13 +3128,13 @@ static void vStartLSM6SelfTest(void)
       
       if(eIntMngr_Add(l_sInterruptCxt) != INT_MNG_ERROR_NONE)
       {
-         printf("$RSL,SFT+LSM6+0\n");
+         //printf("$RSL,SFT,LSM6+0\n");
       }
       
       l_sInterruptCxt.u32Pin = LSM6_INT2;      
       if(eIntMngr_Add(l_sInterruptCxt) != INT_MNG_ERROR_NONE)
       {
-         printf("$RSL,SFT+LSM6+0\n");
+         //printf("$RSL,SFT,LSM6+0\n");
       }
       
       if(eLSM6DSL_ContextSet(g_sLSM6Context) == LSM6DSL_ERROR_NONE)
@@ -3205,7 +3198,7 @@ static void vStartLSM6SelfTest(void)
                   && (ST_LSM6_MIN_POS <= l_s32YRes) && (l_s32YRes <= ST_LSM6_MAX_POS)
                   && (ST_LSM6_MIN_POS <= l_s32ZRes) && (l_s32ZRes <= ST_LSM6_MAX_POS) )
                {
-                  l_u8Error = 0u;
+						HT_SET_FLAG(HT_FLAG_SELFTEST_LSM6);
                }
                // Disable Sensor
                eLSM6_DebugWrite(0x10,0x00);
@@ -3215,15 +3208,7 @@ static void vStartLSM6SelfTest(void)
          }
       }
    }
-   
-   if(l_u8Error == 0u)
-   {
-      HT_SET_FLAG(HT_FLAG_SELFTEST_LSM6);
-   }
-   else
-   {
-      printf("$RSL,SFT+LSM6+0\n");
-   }
+	PRINT_CUSTOM("$RSL,SFT,LSM6+%d,%d\n", HT_CHECK_FLAG(HT_FLAG_SELFTEST_LSM6), (HT_CHECK_FLAG(HT_FLAG_INT1_LSM6) && HT_CHECK_FLAG(HT_FLAG_INT2_LSM6)));
 #endif
 }
 static void vLSM6SelfTestIntHandler(uint32_t p_u32IntPin, e_IntMng_PolarityDetection_t p_ePolarity)
@@ -3253,7 +3238,6 @@ static void vStartLIS2SelfTest(void)
    int32_t l_s32YRes = 0;
    int32_t l_s32ZRes = 0;
    uint8_t l_u8Idx = 0u;
-   uint8_t l_u8Error = 255u;
 #endif
 
    if(g_u8I2CInit == 1u)
@@ -3267,7 +3251,7 @@ static void vStartLIS2SelfTest(void)
       
       if(eIntMngr_Add(l_sInterruptCxt) != INT_MNG_ERROR_NONE)
       {
-         printf("$RSL,SFT+LIS2+0\n");
+         //printf("$RSL,SFT,LIS2+0\n");
       }
       
       if(eLIS2MDL_ContextSet(g_sLIS2Context) == LIS2MDL_ERROR_NONE)
@@ -3332,7 +3316,7 @@ static void vStartLIS2SelfTest(void)
                            && (ST_LIS2_MIN_POS <= l_s32YRes) && (l_s32YRes <= ST_LIS2_MAX_POS)
                            && (ST_LIS2_MIN_POS <= l_s32ZRes) && (l_s32ZRes <= ST_LIS2_MAX_POS) )
                         {
-                           l_u8Error = 0u;
+									HT_SET_FLAG(HT_FLAG_SELFTEST_LIS2);
                         }
                      }
                   }
@@ -3342,15 +3326,7 @@ static void vStartLIS2SelfTest(void)
       }
    #endif
    }
-   
-   if(l_u8Error == 0u)
-   {
-      HT_SET_FLAG(HT_FLAG_SELFTEST_LIS2);
-   }
-   else
-   {
-      printf("$RSL,SFT+LIS2+0\n");
-   }
+	PRINT_CUSTOM("$RSL,SFT,LIS2+%d,%d\n", HT_CHECK_FLAG(HT_FLAG_SELFTEST_LSM6), HT_CHECK_FLAG(HT_FLAG_INT_LIS2));
 }
 static void vLIS2SelfTestIntHandler(uint32_t p_u32IntPin, e_IntMng_PolarityDetection_t p_ePolarity)
 {
