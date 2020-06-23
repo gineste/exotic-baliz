@@ -531,7 +531,7 @@ void vHT_BackgroundProcess(void)
    }
    else if(HT_CHECK_FLAG(HT_FLAG_SELFTEST_LSM6))
    {
-      //if(HT_CHECK_FLAG(HT_FLAG_INT1_LSM6) && HT_CHECK_FLAG(HT_FLAG_INT2_LSM6))
+      if(HT_CHECK_FLAG(HT_FLAG_INT1_LSM6) && HT_CHECK_FLAG(HT_FLAG_INT2_LSM6))
       {
          HT_CLEAR_FLAG(HT_FLAG_INT1_LSM6);
          HT_CLEAR_FLAG(HT_FLAG_INT2_LSM6);
@@ -938,21 +938,6 @@ static void vStartI2CSensorsInitTest(void)
 
 #if (EN_VEML6075 == 1)
 
-#endif
-   
-#if (EN_ST25DV == 1)
-	l_u8Error = 1u;
-   if(eST25DV_ContextSet(g_sST25DVContext) == ST25DV_ERROR_NONE)
-   {
-      (void)eST25DV_GPOConfigure(ST25DV_MSK_GPO_ENABLED | ST25DV_MSK_GPO_ON_FIELD_CHANGE);
-		l_u8Error = 0u;
-   }
-	
-	if(l_u8Error == 1u)
-   {
-		printf("$RSL,ISS,NFC+0\n");
-		return;
-   }   
 #endif
    
 #if (EN_LTC2943 == 1)
@@ -2523,7 +2508,7 @@ static void vCfgSensor(uint8_t * p_pu8Arg, uint8_t p_u8Size)
       {
          if(strstr((char*)p_pu8Arg, "BME") != NULL)
          {
-            printf("$ACK,CFG+%s\n","1");
+            printf("$ACK,CFG,BME+%s\n","1");
             l_u8Len = strlen((char*)&p_pu8Arg[4u]);
             vCfgBME(&p_pu8Arg[4u], l_u8Len);
          }
@@ -2845,7 +2830,7 @@ static void vCfgMAX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
    int32_t l_s32Data1 = 0;
    int32_t l_s32Data2 = 0;
    
-   if( (p_u8Size != 0u) && (g_u8I2CInit != 0u) )
+   if( (p_u8Size != 0u) && (g_u8I2CInit != 0u) && (p_pu8Arg != NULL))
    {
       switch(p_pu8Arg[0u])
       {
@@ -2853,18 +2838,20 @@ static void vCfgMAX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
             if(eMAX1720X_ContextSet(g_sMAX1720xContext) == MAX1720X_ERROR_NONE)
             {
                l_u8Success = 1u;
+					printf("$RSL,CFG,MAX,c+1\n");
             }
             break;
          case 'i':
             if(eMAX1720X_Init() == MAX1720X_ERROR_NONE)
             {
                l_u8Success = 1u;
+					printf("$RSL,CFG,MAX,i+1\n");
             }
             break;
          case 's':
             if(eMAX1720X_StatusGet(&l_u16Data) == MAX1720X_ERROR_NONE)
             {
-					printf("$RSL,CFG,MAX+1,x%04X\n",l_u16Data);
+					printf("$RSL,CFG,MAX,s+1,x%04X\n",l_u16Data);
                l_u8Success = 1u;
             }
             break;
@@ -2873,7 +2860,7 @@ static void vCfgMAX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
                && (eMAX1720X_TemperatureGet(MAX1720X_TEMP_1, &l_s32Data1) == MAX1720X_ERROR_NONE)
                && (eMAX1720X_TemperatureGet(MAX1720X_TEMP_2, &l_s32Data2) == MAX1720X_ERROR_NONE) )
             {
-               printf("$RSL,CFG,MAX+1,%d,%d,%d\n",l_s32Data,l_s32Data1,l_s32Data2);
+               printf("$RSL,CFG,MAX,T+1,%d,%d,%d\n",l_s32Data,l_s32Data1,l_s32Data2);
                l_u8Success = 1u;
             }
             break;
@@ -2885,14 +2872,14 @@ static void vCfgMAX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
                && (eMAX1720X_VoltageGet(MAX1720X_CELL_X, &l_u16DataX) == MAX1720X_ERROR_NONE)
                && (eMAX1720X_VoltageGet(MAX1720X_VBAT, &l_u16DataAll) == MAX1720X_ERROR_NONE) )
             {
-               printf("$RSL,CFG,MAX+1,%d,%d,%d,%d,%d,%d\n",l_u16Data1,l_u16Data2,l_u16Data3,l_u16Data4,l_u16DataX,l_u16DataAll);
+               printf("$RSL,CFG,MAX,V+1,%d,%d,%d,%d,%d,%d\n",l_u16Data1,l_u16Data2,l_u16Data3,l_u16Data4,l_u16DataX,l_u16DataAll);
                l_u8Success = 1u;
             }
             break;
          case 'I':            
             if(eMAX1720X_CurrentGet(&l_s32Data) == MAX1720X_ERROR_NONE)
             {
-               printf("$RSL,CFG,MAX+1,%d\n",-l_s32Data);
+               printf("$RSL,CFG,MAX,I+1,%d\n",-l_s32Data);
                l_u8Success = 1u;
             }
             break;
@@ -2901,7 +2888,7 @@ static void vCfgMAX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
             l_u16Data = (uint16_t)l_u32Reg;
             if(eMAX1720X_DebugRead(l_u16Data,&l_u16Data1) == MAX1720X_ERROR_NONE)
             {
-               printf("$RSL,CFG,MAX+1,x%03X:x%04X\n",l_u16Data,l_u16Data1);
+               printf("$RSL,CFG,MAX,r+1,x%03X:x%04X\n",l_u16Data,l_u16Data1);
                l_u8Success = 1u;
             }
             break;
@@ -2930,9 +2917,12 @@ static void vCfgMAX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
          default:
             break;
       }
+		
+		if(l_u8Success == 0u)
+		{
+			printf("$RSL,CFG,MAX,%c+0\n",p_pu8Arg[0u]);
+		}
    }  
-   
-   printf("$RSL,CFG,MAX+%1d\n",l_u8Success);
 }
 
 static void vStartSelfTest(uint8_t * p_pu8Arg, uint8_t p_u8Size)
