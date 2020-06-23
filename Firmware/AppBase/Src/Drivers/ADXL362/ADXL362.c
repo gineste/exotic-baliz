@@ -390,7 +390,7 @@ e_ADXL362_ErrorCode_t eADXL362_RangeSet(e_ADXL362_Range_t p_eRange)
 
    l_u8OldReg = l_au8Buffer[0u];
    l_u8NewReg = l_u8OldReg & (~ADXL362_FILTER_CTL_RANGE(ADXL362_CTL_MASK));
-   l_u8NewReg |= ADXL362_FILTER_CTL_RANGE(g_sADXL362.eRange);
+   l_u8NewReg |= ADXL362_FILTER_CTL_RANGE(p_eRange);
    l_au8Buffer[0u] = l_u8NewReg;
    l_eErrCode = eRegisterSet(ADXL362_REG_FILTER_CTL, l_au8Buffer, 1u);
    EXIT_ERROR_CHECK(l_eErrCode);

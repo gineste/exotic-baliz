@@ -817,7 +817,7 @@ static void vStartSPITest(void)
       .u32MOSIPin = SPI_MOSI,
       .u32MISOPin = SPI_MISO,
       .u32ClockPin = SPI_SCLK,
-      .u32ChipSelectPin = 0xFF,//ADXL_CS,
+      .u32ChipSelectPin = ADXL_CS,
       .eMode = HALSPI_MODE_0,
       .eFrequency = HALSPI_FREQ_1M,
    };
@@ -1976,6 +1976,7 @@ static void vLPMTest(void)
    #if (EN_VEML6075 == 1)
    #endif
    #if (EN_ST25DV == 1)
+		vHal_GPIO_Set(ST25DV_LPD);
       vGPIO_DefaultCfg(ST25DV_GPO_INT);
    #endif
       /* I2C */
