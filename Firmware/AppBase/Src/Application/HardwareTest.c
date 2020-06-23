@@ -873,6 +873,10 @@ static void vStartI2CSensorsInitTest(void)
       printf("$RSL,ISS,BME+0\n");
       return;
    }
+	else
+	{
+		g_u8BMEInit = 1u;
+	}
    
 #endif	
 #if (EN_MAX44009 == 1)  
@@ -892,6 +896,10 @@ static void vStartI2CSensorsInitTest(void)
       printf("$RSL,ISS,MAX+0\n");
       return;
    }
+	else
+	{
+		g_u8MAXInit = 1u;
+	}
 #endif
 #if (EN_LSM6DSL == 1)
    l_u8Error = 1u;
@@ -913,6 +921,10 @@ static void vStartI2CSensorsInitTest(void)
       printf("$RSL,ISS,LSM+0\n");
       return;
    }
+	else
+	{
+		g_u8LSMInit = 1u;
+	}
 #endif
 #if (EN_LIS2MDL == 1)
    l_u8Error = 1u;
@@ -933,7 +945,11 @@ static void vStartI2CSensorsInitTest(void)
    {
       printf("$RSL,ISS,LIS+0\n");
       return;
-   }   
+   }
+	else
+	{
+		g_u8LISInit = 1u;
+	}
 #endif
 
 #if (EN_VEML6075 == 1)
@@ -956,6 +972,10 @@ static void vStartI2CSensorsInitTest(void)
       printf("$RSL,ISS,LTC+0\n");
       return;
    }
+	else
+	{
+		g_u8LTCInit = 1u;
+	}
 #endif
    
    printf("$RSL,ISS+1\n");
