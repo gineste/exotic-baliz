@@ -378,6 +378,7 @@ static uint8_t g_u8LISInit = 0u;
 static uint8_t g_u8LSMInit = 0u;
 static uint8_t g_u8LTCInit = 0u;
 static uint8_t g_u8ADXInit = 0u;
+static uint8_t g_u8NFCInit = 0u;
    
 static uint8_t g_u8StopTest = 0u;
 static uint8_t g_u8SDInit = 0u;
@@ -581,29 +582,18 @@ static void vNFCTest(void)
 {   
 #if (EN_ST25DV == 1)  
    uint16_t l_u16Timeout = 100u;
-   vHal_GPIO_Clear(ST25DV_LPD);
-   vHal_Timer_DelayMs(DELAY_WAKEUP_SENSOR);
-   
-   s_IntMng_Context_t l_sInterruptCxt = {
-      .u32Pin = g_sST25DVContext.u32IntPin,
-      .ePullMode = HALGPIO_PIN_PULLDOWN,
-      .ePolarityDetection = INT_POL_DTCT_LOTOHI,
-      .fpvHandler = &vNFCIntHandler
-   };
-	
-	if(g_u8I2CInit == 1u)
+	s_IntMng_Context_t l_sInterruptCxt = {
+	.u32Pin = g_sST25DVContext.u32IntPin,
+	.ePullMode = HALGPIO_PIN_PULLDOWN,
+	.ePolarityDetection = INT_POL_DTCT_LOTOHI,
+	.fpvHandler = &vNFCIntHandler
+};
+		
+	if (g_u8NFCInit == 1u)
 	{
 		if(eIntMngr_Add(l_sInterruptCxt) != INT_MNG_ERROR_NONE)
 		{
 			PRINT_WARNING("%s","Fail to Add GPIOTE NFC INT");
-		}
-		
-		if(eST25DV_ContextSet(g_sST25DVContext) == ST25DV_ERROR_NONE)
-		{
-			if(eST25DV_GPOConfigure(ST25DV_MSK_GPO_ENABLED | ST25DV_MSK_GPO_ON_ACTIVITY | ST25DV_MSK_GPO_ON_FIELD_CHANGE) == ST25DV_ERROR_NONE)
-			{
-				HT_SET_FLAG(HT_FLAG_SELFTEST_NFC);         
-			}
 		}
 		
 		while(l_u16Timeout)
@@ -618,9 +608,7 @@ static void vNFCTest(void)
 	}
    
    PRINT_CUSTOM("$RSL,NFC+%d,%d\n", HT_CHECK_FLAG(HT_FLAG_SELFTEST_NFC), HT_CHECK_FLAG(HT_FLAG_INT_GPO_NFC));
-   
-   eIntMngr_Delete(g_sST25DVContext.u32IntPin);
-	HT_CLEAR_FLAG(HT_FLAG_SELFTEST_NFC);
+	eIntMngr_Delete(g_sST25DVContext.u32IntPin);
 	HT_CLEAR_FLAG(HT_FLAG_INT_GPO_NFC);
    vHal_GPIO_Set(ST25DV_LPD);
 #endif
@@ -975,6 +963,32 @@ static void vStartI2CSensorsInitTest(void)
 	else
 	{
 		g_u8LTCInit = 1u;
+	}
+#endif
+
+#if (EN_ST25DV == 1)
+	l_u8Error = 1u;
+   vHal_GPIO_Clear(ST25DV_LPD);
+   vHal_Timer_DelayMs(DELAY_WAKEUP_SENSOR);
+	
+	if(eST25DV_ContextSet(g_sST25DVContext) == ST25DV_ERROR_NONE)
+	{
+		if(eST25DV_GPOConfigure(ST25DV_MSK_GPO_ENABLED | ST25DV_MSK_GPO_ON_ACTIVITY | ST25DV_MSK_GPO_ON_FIELD_CHANGE) == ST25DV_ERROR_NONE)
+		{
+			HT_SET_FLAG(HT_FLAG_SELFTEST_NFC); 
+			l_u8Error = 0u;			
+		}
+	}
+	vHal_GPIO_Set(ST25DV_LPD);
+	
+	if(l_u8Error == 1u)
+   {
+      printf("$RSL,ISS,NFC+0\n");
+      return;
+   }
+	else
+	{
+		g_u8NFCInit = 1u;
 	}
 #endif
    
