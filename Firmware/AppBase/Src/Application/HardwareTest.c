@@ -615,10 +615,12 @@ static void vNFCTest(void)
 }
 static void vNFCIntHandler(uint32_t p_u32IntPin, e_IntMng_PolarityDetection_t p_ePolarity)
 {
+	#if (EN_ST25DV == 1)  
    if(p_u32IntPin == g_sST25DVContext.u32IntPin)
    {
       HT_SET_FLAG(HT_FLAG_INT_GPO_NFC);
    }
+	#endif
 }
 
 static void vHT_NewTestProcess(e_HT_Commands_t p_eCmd, uint8_t * p_au8Arg, uint8_t p_u8Size)
@@ -1927,6 +1929,7 @@ static void vLPMTest(void)
    }
    else
    {
+		
    #if (EN_ORG1510 == 1)
       if(g_u8TestInProgress == 1u)
       {
@@ -1935,20 +1938,10 @@ static void vLPMTest(void)
             vUartMngt_Process();
          }while(eUartMngt_StateGet() != USM_IDLE);
       }
+		
       vHal_GPIO_Clear(GPS_POWER_EN);
-      vGPIO_DefaultCfg(GPS_ON);
-   #if (BALIZ_V == 2)
-      vGPIO_DefaultCfg(GPS_RST);
-   #elif (BALIZ_V == 3)
-      vGPIO_DefaultCfg(GPS_BACKUP);
-   #else
-      #error "Board version not supported!"
-   #endif
-      vGPIO_DefaultCfg(GPS_POWER_EN);
-      vGPIO_DefaultCfg(GPS_UART_RX);
-      vGPIO_DefaultCfg(GPS_UART_TX);
-   #endif
-      
+	#endif
+	
    #if (EN_ADXL362 == 1)
       vHal_GPIO_Clear(ADXL_POWER_EN);
       vGPIO_DefaultCfg(ADXL_INT2);
@@ -1959,23 +1952,27 @@ static void vLPMTest(void)
       vGPIO_DefaultCfg(SPI_MOSI);
       vGPIO_DefaultCfg(SPI_MISO);
    #endif
-      
+		
    #if (EN_BME280 == 1)
       eBME280_OSRTemperatureSet(BME280_OVERSAMPLING_OFF);
       eBME280_OSRPressureSet(BME280_OVERSAMPLING_OFF);
       eBME280_OSRHumiditySet(BME280_OVERSAMPLING_OFF);
    #endif
+	
    #if (EN_MAX44009 == 1)
       eMAX44009_ConversionModeSet(MAX44009_DEFAULT, MAX44009_MANUAL,MAX44009_INT_TIME_800MS,MAX44009_HIGH_BRIGHTNESS);
       eMAX44009_InterruptCfg(0u, 0u, 0u, 0u);
       vGPIO_DefaultCfg(MAX44009_INT);
    #endif
+	
    #if (EN_LSM6DSL == 1)
       eLSM6DSL_AccelCfgSet(LSM6DSL_ODR_POWER_DOWN, LSM6DSL_ACCEL_RANGE_2G, LSM6DSL_MODE_LOW_POWER);
       eLSM6DSL_GyroCfgSet(LSM6DSL_ODR_POWER_DOWN, LSM6DSL_GYRO_RANGE_250DPS, LSM6DSL_MODE_LOW_POWER);
       vGPIO_DefaultCfg(LSM6_INT1);
       vGPIO_DefaultCfg(LSM6_INT2);
    #endif
+	
+	
    #if (EN_LIS2MDL == 1)
       eLIS2MDL_LowPower(1u);
       eLIS2MDL_OutputDataRateSet(LIS2MDL_ODR_10Hz);
@@ -2851,6 +2848,7 @@ static void vCfgORG(uint8_t * p_pu8Arg, uint8_t p_u8Size)
 
 static void vCfgMAX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
 {   
+	#if (EN_MAX17205 == 1)  
    uint8_t l_u8Success = 0u;
    uint16_t l_u16Data = 0u;
    uint16_t l_u16Data1 = 0u;
@@ -2958,6 +2956,7 @@ static void vCfgMAX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
 			printf("$RSL,CFG,MAX,%c+0\n",p_pu8Arg[0u]);
 		}
    }  
+	#endif
 }
 
 static void vStartSelfTest(uint8_t * p_pu8Arg, uint8_t p_u8Size)
