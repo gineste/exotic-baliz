@@ -532,7 +532,7 @@ void vHT_BackgroundProcess(void)
    }
    else if(HT_CHECK_FLAG(HT_FLAG_SELFTEST_LSM6))
    {
-      //if(HT_CHECK_FLAG(HT_FLAG_INT1_LSM6) && HT_CHECK_FLAG(HT_FLAG_INT2_LSM6))
+      if(HT_CHECK_FLAG(HT_FLAG_INT1_LSM6) && HT_CHECK_FLAG(HT_FLAG_INT2_LSM6))
       {
          HT_CLEAR_FLAG(HT_FLAG_INT1_LSM6);
          HT_CLEAR_FLAG(HT_FLAG_INT2_LSM6);
@@ -900,8 +900,8 @@ static void vStartI2CSensorsInitTest(void)
       {
          l_u8Error = (l_u8ChipID == LSM6DSL_WHO_I_AM_ID)? 0u : 1u;
          (void)eLSM6DSL_BlockDataUpdateSet(1u);
-         (void)eLSM6DSL_AccelCfgSet(LSM6DSL_ODR_833Hz, LSM6DSL_ACCEL_RANGE_2G, LSM6DSL_MODE_LOW_POWER);
-         (void)eLSM6DSL_GyroCfgSet(LSM6DSL_ODR_833Hz, LSM6DSL_GYRO_RANGE_250DPS, LSM6DSL_MODE_LOW_POWER);
+         (void)eLSM6DSL_AccelCfgSet(LSM6DSL_ODR_833Hz, LSM6DSL_ACCEL_RANGE_2G, LSM6DSL_MODE_HIGH_PERF);
+         (void)eLSM6DSL_GyroCfgSet(LSM6DSL_ODR_833Hz, LSM6DSL_GYRO_RANGE_250DPS, LSM6DSL_MODE_HIGH_PERF);
             
       }
    }
@@ -1477,8 +1477,8 @@ static void vStartSensorReadTest(uint8_t * p_pu8Arg, uint8_t p_u8Size)
          {
       #if (EN_LSM6DSL == 1)
             (void)eLSM6DSL_BlockDataUpdateSet(1u);
-            (void)eLSM6DSL_AccelCfgSet(LSM6DSL_ODR_6_66kHz, LSM6DSL_ACCEL_RANGE_2G, LSM6DSL_MODE_LOW_POWER);
-            (void)eLSM6DSL_GyroCfgSet(LSM6DSL_ODR_6_66kHz, LSM6DSL_GYRO_RANGE_250DPS, LSM6DSL_MODE_LOW_POWER);
+            (void)eLSM6DSL_AccelCfgSet(LSM6DSL_ODR_6_66kHz, LSM6DSL_ACCEL_RANGE_2G, LSM6DSL_MODE_HIGH_PERF);
+            (void)eLSM6DSL_GyroCfgSet(LSM6DSL_ODR_6_66kHz, LSM6DSL_GYRO_RANGE_250DPS, LSM6DSL_MODE_HIGH_PERF);
             vHal_Timer_DelayMs(100u);
             if(   (eLSM6DSL_GyroRead() == LSM6DSL_ERROR_NONE)
                && (eLSM6DSL_AccelRead() == LSM6DSL_ERROR_NONE) )
@@ -3145,7 +3145,7 @@ static void vStartLSM6SelfTest(void)
    
    if(g_u8I2CInit == 1u)
    { 
-      l_sInterruptCxt.u32Pin = LSM6_INT1;
+      l_sInterruptCxt.u32Pin = LSM6_INT2;
       l_sInterruptCxt.ePullMode = HALGPIO_PIN_NOPULL;
       l_sInterruptCxt.ePolarityDetection = INT_POL_DTCT_TOGGLE;
       l_sInterruptCxt.fpvHandler = &vLSM6SelfTestIntHandler;
@@ -3155,7 +3155,11 @@ static void vStartLSM6SelfTest(void)
          //printf("$RSL,SFT,LSM6+0\n");
       }
       
-      l_sInterruptCxt.u32Pin = LSM6_INT2;      
+      l_sInterruptCxt.u32Pin = LSM6_INT1;   
+      l_sInterruptCxt.ePullMode = HALGPIO_PIN_NOPULL;
+      l_sInterruptCxt.ePolarityDetection = INT_POL_DTCT_TOGGLE;
+      l_sInterruptCxt.fpvHandler = &vLSM6SelfTestIntHandler;
+		
       if(eIntMngr_Add(l_sInterruptCxt) != INT_MNG_ERROR_NONE)
       {
          //printf("$RSL,SFT,LSM6+0\n");
@@ -3231,14 +3235,25 @@ static void vStartLSM6SelfTest(void)
             }
          }
       }
+		
+		/* Interrupts */
+		eLSM6_DebugWrite(0x10,0x60);	/* accel read */
+		eLSM6_DebugWrite(0x0D,0x01); 	/* int1 on new accel data */
+		eLSM6_DebugWrite(0x0E,0x01); 	/* int2 on new accel data */
    }
 	PRINT_CUSTOM("$RSL,SFT,LSM6+%d,%d\n", HT_CHECK_FLAG(HT_FLAG_SELFTEST_LSM6), (HT_CHECK_FLAG(HT_FLAG_INT1_LSM6) && HT_CHECK_FLAG(HT_FLAG_INT2_LSM6)));
 #endif
 }
 static void vLSM6SelfTestIntHandler(uint32_t p_u32IntPin, e_IntMng_PolarityDetection_t p_ePolarity)
 {
-   HT_SET_FLAG(HT_FLAG_INT1_LSM6);
-   HT_SET_FLAG(HT_FLAG_INT2_LSM6);
+	if (p_u32IntPin == LSM6_INT1)
+	{
+		HT_SET_FLAG(HT_FLAG_INT1_LSM6);
+	}
+	if (p_u32IntPin == LSM6_INT2)
+	{
+		HT_SET_FLAG(HT_FLAG_INT2_LSM6);
+	}
 }
 static void vStartLIS2SelfTest(void)
 {
