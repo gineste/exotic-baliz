@@ -3365,7 +3365,7 @@ static void vStartLIS2SelfTest(void)
       }
    #endif
    }
-	PRINT_CUSTOM("$RSL,SFT,LIS2+%d,%d\n", HT_CHECK_FLAG(HT_FLAG_SELFTEST_LSM6), HT_CHECK_FLAG(HT_FLAG_INT_LIS2));
+	PRINT_CUSTOM("$RSL,SFT,LIS2+%d,%d\n", HT_CHECK_FLAG(HT_FLAG_SELFTEST_LIS2), HT_CHECK_FLAG(HT_FLAG_INT_LIS2));
 }
 static void vLIS2SelfTestIntHandler(uint32_t p_u32IntPin, e_IntMng_PolarityDetection_t p_ePolarity)
 {
