@@ -111,7 +111,7 @@ void vHal_GPIO_Init(void)
 //	vGPIO_InputCfg(LIS2_INT, HALGPIO_PIN_NOPULL);
    
    /* ST25DV Interrupt */
-	vGPIO_InputCfg(ST25DV_GPO_INT, HALGPIO_PIN_PULLUP);
+	vGPIO_InputCfg(ST25DV_GPO_INT, HALGPIO_PIN_NOPULL);
 #if (BALIZ_V == 3)
 	vGPIO_OutputCfg(ST25DV_LPD, HALGPIO_PIN_NOPULL);
    vHal_GPIO_Set(ST25DV_LPD);
@@ -119,7 +119,7 @@ void vHal_GPIO_Init(void)
 
    /* Gauge */
 #if (BALIZ_V == 3)
-	vGPIO_InputCfg(GAUGE_ALERT, HALGPIO_PIN_PULLUP);
+	vGPIO_InputCfg(GAUGE_ALERT, HALGPIO_PIN_NOPULL); /* Not used */
 #endif
 
 #if (BALIZ_V == 3)

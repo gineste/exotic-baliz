@@ -130,7 +130,7 @@
 // <i> Timeout between 0 sec(unlimited) and 600 sec with step of 5 sec
 // <i> FAST_ADV_TIMEOUT_BLE
 #ifndef FAST_ADV_TIMEOUT_BLE
-#define FAST_ADV_TIMEOUT_BLE 120
+#define FAST_ADV_TIMEOUT_BLE 5
 #endif
 // <o> Slow Advertise Interval - mseconds <500-10000:5>
 #ifndef SLOW_ADV_INTERVAL_BLE
@@ -141,7 +141,7 @@
 // <i> Timeout between  0 sec(unlimited) and 1h with step of 5 sec
 // <i> SLOW_ADV_TIMEOUT_BLE
 #ifndef SLOW_ADV_TIMEOUT_BLE
-#define SLOW_ADV_TIMEOUT_BLE 120
+#define SLOW_ADV_TIMEOUT_BLE 5
 #endif
 // <o> WakeUp BLE after end of advertising Time out - seconds <00-600:10>
 // <i> Timeout between 0 sec(unlimited) and 10 min with step of 10 sec
