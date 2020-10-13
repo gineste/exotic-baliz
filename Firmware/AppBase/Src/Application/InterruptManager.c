@@ -153,6 +153,29 @@ e_IntMng_Error_t eIntMngr_Delete(uint32_t p_u32Pin)
    return l_eError;
 }
 
+e_IntMng_Error_t eIntMngr_DisableAllInterrupt(void)
+{
+   e_IntMng_Error_t l_eError = INT_MNG_ERROR_INIT;
+   uint8_t l_u8Idx = 0u;
+   
+   if(g_u8IntMngrInitialized == 1u)
+   {
+      
+      for(l_u8Idx = 0u;l_u8Idx < MAX_INTERRUPT_NUM;l_u8Idx++)
+      {
+         if(g_sIntHandler[l_u8Idx].u32Pin != UINT8_MAX)
+         {
+            nrf_drv_gpiote_in_uninit((nrf_drv_gpiote_pin_t)g_sIntHandler[l_u8Idx].u32Pin);
+            g_sIntHandler[l_u8Idx].u32Pin = UINT8_MAX;
+            g_sIntHandler[l_u8Idx].fpvHandler = NULL;
+         }
+      }
+      l_eError = INT_MNG_ERROR_NONE;
+   }
+   
+   return l_eError;
+}
+
 /****************************************************************************************
  * Private functions
  ****************************************************************************************/

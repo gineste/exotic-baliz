@@ -2862,6 +2862,9 @@ static void vCfgMAX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
    int32_t l_s32Data = 0;
    int32_t l_s32Data1 = 0;
    int32_t l_s32Data2 = 0;
+	int32_t l_as32DataArray[10u] = {0};
+	uint8_t l_u8Iter = 0u;
+	int64_t l_s64Data = 0;
    
    if( (p_u8Size != 0u) && (g_u8I2CInit != 0u) && (p_pu8Arg != NULL))
    {
@@ -2909,12 +2912,19 @@ static void vCfgMAX(uint8_t * p_pu8Arg, uint8_t p_u8Size)
                l_u8Success = 1u;
             }
             break;
-         case 'I':            
-            if(eMAX1720X_CurrentGet(&l_s32Data) == MAX1720X_ERROR_NONE)
-            {
-               printf("$RSL,CFG,MAX,I+1,%d\n",-l_s32Data);
+         case 'I': 
+				while((MAX1720X_ERROR_NONE == eMAX1720X_CurrentGet(&l_as32DataArray[l_u8Iter])) && (l_u8Iter < 10u))
+				{
+					l_s64Data += l_as32DataArray[l_u8Iter];
+					l_u8Iter++;
+					vHal_Timer_DelayMs(350);
+				};
+				
+				if(l_u8Iter >= 10u)
+				{
+					printf("$RSL,CFG,MAX,I+1,%d\n",-(int64_t)l_s64Data/l_u8Iter);
                l_u8Success = 1u;
-            }
+				}
             break;
          case 'r':        
             sscanf( (char*)&p_pu8Arg[2u], "%x", &l_u32Reg);

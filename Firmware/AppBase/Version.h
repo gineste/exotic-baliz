@@ -21,7 +21,7 @@
 /************************************************************************
  * Defines
  ************************************************************************/
-#define FW_VERSION   "1.1.0"
+#define FW_VERSION   "1.1.1"
 #define HW_VERSION   "3.E"
 
 #define BUILD_DATE            __DATE__
@@ -29,7 +29,7 @@
 
 #define FW_VERSION_MAJOR	   ((uint8_t)1)
 #define FW_VERSION_MINOR	   ((uint8_t)1)
-#define FW_VERSION_REVISION   ((uint8_t)0)
+#define FW_VERSION_REVISION   ((uint8_t)1)
 
 #define HW_VERSION_MAJOR	   ((uint8_t)3u)
 #define HW_VERSION_MINOR	   ((uint8_t)14u)

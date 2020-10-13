@@ -26,6 +26,7 @@
 
 /* Application include */
 #include "SensorManager.h"
+#include "InterruptManager.h"
 
 /* Libraries includes */
 #include "Libraries/Button.h"
@@ -73,15 +74,10 @@
  */
 void vDeepSleep_Entry(void)
 {
-//   vButton_Enable(0u);
    /* Stop Advertising (if operational)*/
    vBLE_AdvertisingStop();
    /* Set LED to DeepSleep */
    vSimpleLED_BLACK();
-   
-//#if (EN_LTC2943 == 1)  
-//   eLTC2943_PowerDown(1u);
-//#endif
    
    (void)eHal_Timer_StopAll();
    
@@ -89,10 +85,8 @@ void vDeepSleep_Entry(void)
    vHal_I2C_Uninit();
    vHal_SPI_Uninit();
    vBuzzerUninit();
-   
-   /* Shutdown GPS Power */
 
-   //vBLE_SoftDeviceDisable();
+	eIntMngr_DisableAllInterrupt();
 }
 
 /**@brief Lowest Power Mode, do absolutely nothing.

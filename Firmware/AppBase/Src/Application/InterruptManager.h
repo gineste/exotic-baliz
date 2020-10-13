@@ -56,6 +56,7 @@ typedef struct _INT_MNG_CONTEXT_ {
 e_IntMng_Error_t eIntMngr_Init(void);
 e_IntMng_Error_t eIntMngr_Add(s_IntMng_Context_t p_sContext);
 e_IntMng_Error_t eIntMngr_Delete(uint32_t p_u32Pin);
+e_IntMng_Error_t eIntMngr_DisableAllInterrupt(void);
 
 #endif /* INTERRUPT_MANAGER_H */
 
